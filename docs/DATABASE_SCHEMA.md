@@ -18,6 +18,9 @@ Full, runnable SQL is the source of truth, in `supabase/migrations/`, applied in
 | `0012_tax_permission.sql` | Adds the `bills.tax` permission (Owner can allow/deny tax per user, same as discounts) and extends the billing-permission trigger to enforce it |
 | `0013_realtime_extra.sql` | Adds production tracking and the activity log to realtime |
 | `0014_branch_tax_currency.sql` | Adds per-branch tax rate/label and currency — the system now works the same way for a Pakistan branch, a Saudi Arabia branch, or any future country, with no code change |
+| `0015_fix_tax_permission_check.sql` | **Critical fix** — the billing-permission trigger was rejecting every bill from a user without `bills.tax` at a branch with a nonzero tax rate, since tax now applies automatically to everyone. Now it only blocks an actual *override* of the auto-calculated amount |
+| `0016_discount_rules.sql` | Adds `discount_rules` — standing category-wide or item-specific discounts that apply automatically at billing time, plus the `discounts.manage` permission |
+| `0017_fix_branch_manager_defaults.sql` | Catch-up fix for databases that already ran the (buggy) original `0012`/`0016` — see the file header for why the original inserts silently did nothing |
 
 This document is the plain-English map of what's in there and why.
 

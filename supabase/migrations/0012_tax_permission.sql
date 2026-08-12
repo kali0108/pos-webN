@@ -12,18 +12,13 @@ insert into permissions (key, label, category) values
   ('bills.tax', 'Apply tax', 'Billing')
 on conflict (key) do nothing;
 
--- Sensible defaults: Branch Manager can apply tax by default, Cashier
--- and Production Staff can't (same shape as the discount permission).
--- The Owner ignores the matrix entirely, as always.
-insert into role_template_permissions (role_template_id, permission_key, allowed)
-select id, 'bills.tax', true from role_templates where name = 'Branch Manager'
-on conflict (role_template_id, permission_key) do nothing;
-
-insert into role_template_permissions (role_template_id, permission_key, allowed)
-select rt.id, 'bills.tax', false
-from role_templates rt
-where rt.name <> 'Owner'
-on conflict (role_template_id, permission_key) do nothing;
+-- NOTE: role template DEFAULTS for this permission are set in
+-- seed.sql, not here. role_templates rows (Owner, Branch Manager,
+-- Cashier, Production Staff) don't exist until seed.sql runs, which
+-- happens AFTER every migration in the documented deploy order — an
+-- insert here that looks up role_templates by name would silently
+-- match zero rows and do nothing, which is exactly the bug this
+-- comment is here to prevent reintroducing.
 
 -- Extend the existing trigger to also gate tax_amount changes,
 -- exactly parallel to the discount_amount check already there.

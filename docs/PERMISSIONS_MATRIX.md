@@ -6,7 +6,8 @@ Every function in the brief's matrix maps to one permission key. The Owner (`pro
 |---|---|---|
 | Create/edit bills | `bills.create` | RLS on `invoices`, `invoice_items`, `payments` (`0005_rls_policies.sql`) |
 | Apply discounts | `bills.discount` | Trigger `enforce_billing_permissions()` on `invoices` (`0006_functions_triggers.sql`) — separate from `bills.create` because a bill can be created without a discount ever being touched |
-| Apply tax | `bills.tax` | Tax is applied automatically from the branch's configured rate for everyone (see `branches.tax_rate_percent`). This permission only controls whether the % can be *overridden* on a specific bill — same trigger, extended in `0012_tax_permission.sql` — not whether tax is charged at all |
+| Apply tax | `bills.tax` | Tax is applied automatically from the branch's configured rate for everyone (see `branches.tax_rate_percent`). This permission only controls whether the % can be *overridden* on a specific bill — same trigger, extended in `0012_tax_permission.sql` and corrected in `0015_fix_tax_permission_check.sql` — not whether tax is charged at all |
+| Manage automatic discounts | `discounts.manage` | RLS on `discount_rules` (`0016_discount_rules.sql`). *Using* an already-configured discount while billing needs no permission at all — it's just the item's price, the same as reading the regular price — only creating/editing the rules themselves is gated |
 | Process refunds | `bills.refund` | RLS on `refunds` |
 | View inventory | `inventory.view` | RLS on `items` (read), `raw_materials`, `branch_item_stock`, `branch_raw_material_stock`, `stock_movements` |
 | Edit/adjust inventory | `inventory.edit` | RLS write policies on the same inventory tables |

@@ -19,10 +19,10 @@ on conflict (name) do nothing;
 insert into role_template_permissions (role_template_id, permission_key, allowed)
 select id, perm, true
 from role_templates, unnest(array[
-  'bills.create','bills.discount','bills.refund',
+  'bills.create','bills.discount','bills.refund','bills.tax',
   'inventory.view','inventory.edit',
   'reports.sales.view','reports.financial.view',
-  'orders.manage','production.edit','data.export'
+  'orders.manage','production.edit','data.export','discounts.manage'
 ]) as perm
 where name = 'Branch Manager'
 on conflict do nothing;

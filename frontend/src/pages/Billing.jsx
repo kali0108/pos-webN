@@ -33,6 +33,7 @@ export default function Billing() {
   const [scanInput, setScanInput] = useState('');
   const scanInputRef = useRef(null);
   const [resumingClientRef, setResumingClientRef] = useState(null); // client_ref of a held bill being edited, so completing it updates the SAME invoice instead of creating a duplicate
+  const searchInputRef = useRef(null);
 
   const canDiscount = isOwner || can('bills.discount');
   const canTax = isOwner || can('bills.tax');
@@ -60,6 +61,45 @@ export default function Billing() {
   // numbers until someone happens to reload the page.
   useRealtimeRefresh('branch_item_stock', loadItems, currentBranchId ? `branch_id=eq.${currentBranchId}` : undefined, !!currentBranchId);
   useRealtimeRefresh('items', loadItems);
+  useRealtimeRefresh('discount_rules', loadItems);
+
+  // Function-key shortcuts for fast counter use — F-keys are
+  // intercepted with preventDefault so the browser's own shortcuts
+  // (e.g. F3 opening Firefox's find bar) don't fire instead.
+  useEffect(() => {
+    function onKeyDown(e) {
+      switch (e.key) {
+        case 'F2':
+          e.preventDefault();
+          searchInputRef.current?.focus();
+          break;
+        case 'F3':
+          e.preventDefault();
+          scanInputRef.current?.focus();
+          break;
+        case 'F4':
+          e.preventDefault();
+          setShowCalculator(true);
+          break;
+        case 'F8':
+          e.preventDefault();
+          if (!busy) submitBill('held');
+          break;
+        case 'F9':
+          e.preventDefault();
+          if (!busy) submitBill('completed');
+          break;
+        case 'Escape':
+          if (cart.length > 0 && window.confirm('Clear the current bill?')) resetCart();
+          break;
+        default:
+          break;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, cart.length, resumingClientRef, taxPercent, discount, payments, customerName, customerPhone, cashReceived]);
 
   async function loadItems() {
     try {
@@ -75,10 +115,35 @@ export default function Billing() {
         .select('item_id, quantity')
         .eq('branch_id', currentBranchId);
       const stockMap = Object.fromEntries((stockRows || []).map((s) => [s.item_id, Number(s.quantity)]));
+
+      const { data: ruleRows } = await supabase.from('discount_rules').select('*').eq('is_active', true);
+      const itemRuleMap = new Map();
+      const categoryRuleMap = new Map();
+      (ruleRows || []).forEach((r) => {
+        if (r.scope === 'item') itemRuleMap.set(r.item_id, r);
+        else categoryRuleMap.set(r.category_id, r);
+      });
+
+      function applyRule(price, rule) {
+        if (!rule) return price;
+        if (rule.discount_type === 'percent') return Math.max(price * (1 - Number(rule.discount_value) / 100), 0);
+        return Math.max(price - Number(rule.discount_value), 0);
+      }
+
       // No stock row at all = treated as 0 (can't sell what isn't in the
       // inventory system yet), not as "unlimited" — matches "stock 0 ho
       // to item select na ho" for anything that was never stocked.
-      const merged = data.map((i) => ({ ...i, stock_qty: stockMap[i.id] ?? 0 }));
+      const merged = data.map((i) => {
+        // Item-specific discount rule wins over a category-wide one for
+        // the same item, per the standing-discount design.
+        const rule = itemRuleMap.get(i.id) || categoryRuleMap.get(i.category_id);
+        const effectivePrice = Number(applyRule(i.unit_price, rule).toFixed(2));
+        return {
+          ...i, stock_qty: stockMap[i.id] ?? 0,
+          effective_price: effectivePrice,
+          discount_label: rule ? rule.label : null,
+        };
+      });
 
       setItems(merged);
       cacheItems(merged, currentBranchId);
@@ -147,7 +212,9 @@ export default function Billing() {
           unit_label: item.unit_label,
           stock_qty: available,
           quantity: item.pricing_mode === 'weight' ? Math.min(0.5, available) : 1,
-          unit_price: item.unit_price,
+          unit_price: item.effective_price ?? item.unit_price,
+          original_price: item.unit_price,
+          discount_label: item.discount_label || null,
         },
       ];
     });
@@ -307,6 +374,9 @@ export default function Billing() {
       <p>Scan/search an item, build the bill, then hold or complete it.</p>
 
       <button className="btn btn-sm" style={{ marginBottom: 14 }} onClick={() => setShowCalculator(true)}>🖩 Calculator</button>
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: -8, marginBottom: 14 }}>
+        Shortcuts: <strong>F2</strong> search · <strong>F3</strong> scan · <strong>F4</strong> calculator · <strong>F8</strong> hold · <strong>F9</strong> complete · <strong>Esc</strong> clear bill
+      </p>
 
       {message && (
         <div className={`card`} style={{ marginBottom: 16, borderColor: message.type === 'ok' ? 'var(--success)' : 'var(--warning)' }}>
@@ -333,7 +403,7 @@ export default function Billing() {
             />
             <button className="btn btn-sm" onClick={() => setShowCameraScan(true)}>📷 Scan</button>
           </div>
-          <input placeholder="Search items by name or SKU…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input ref={searchInputRef} placeholder="Search items by name or SKU…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <div className="grid grid-3" style={{ marginTop: 14 }}>
             {filteredItems.map((item) => {
               const outOfStock = (item.stock_qty ?? 0) <= 0;
@@ -342,11 +412,19 @@ export default function Billing() {
                   key={item.id}
                   className="btn"
                   disabled={outOfStock}
-                  style={{ flexDirection: 'column', alignItems: 'flex-start', height: 72 }}
+                  style={{ flexDirection: 'column', alignItems: 'flex-start', minHeight: 72, height: 'auto', paddingTop: 8, paddingBottom: 8 }}
                   onClick={() => addToCart(item)}
                 >
                   <strong>{item.name}</strong>
-                  <span className="num">{currencySymbol}{Number(item.unit_price).toFixed(2)} / {item.unit_label}</span>
+                  {item.discount_label ? (
+                    <span className="num" style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                      <span style={{ textDecoration: 'line-through', color: 'var(--ink-soft)', fontSize: 11 }}>{currencySymbol}{Number(item.unit_price).toFixed(2)}</span>
+                      <span style={{ color: 'var(--success)' }}>{currencySymbol}{Number(item.effective_price).toFixed(2)}</span>
+                    </span>
+                  ) : (
+                    <span className="num">{currencySymbol}{Number(item.unit_price).toFixed(2)} / {item.unit_label}</span>
+                  )}
+                  {item.discount_label && <span className="badge badge-success" style={{ fontSize: 10 }}>{item.discount_label}</span>}
                   <span className="num" style={{ fontSize: 11, color: outOfStock ? 'var(--danger)' : 'var(--ink-soft)' }}>
                     {outOfStock ? 'Out of stock' : `${item.stock_qty} ${item.unit_label} in stock`}
                   </span>
@@ -441,7 +519,9 @@ export default function Billing() {
             </div>
           </PermissionGate>
 
-          <div className="bill-total-row"><span>Subtotal</span><span className="num money">{currencySymbol}{subtotal.toFixed(2)}</span></div>
+          {(discountAmount > 0 || taxAmount > 0) && (
+            <div className="bill-total-row"><span>Subtotal</span><span className="num money">{currencySymbol}{subtotal.toFixed(2)}</span></div>
+          )}
           {discountAmount > 0 && <div className="bill-total-row"><span>Discount</span><span className="num money">-{currencySymbol}{discountAmount.toFixed(2)}</span></div>}
           {taxAmount > 0 && <div className="bill-total-row"><span>{taxLabel} ({Number(taxPercent).toFixed(1)}%)</span><span className="num money">{currencySymbol}{taxAmount.toFixed(2)}</span></div>}
           <div className="bill-total-row grand"><span>Total</span><span className="num money">{currencySymbol}{total.toFixed(2)}</span></div>

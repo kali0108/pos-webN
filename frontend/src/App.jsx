@@ -11,6 +11,7 @@ import Billing from './pages/Billing'; // kept as a normal (non-lazy) import: th
 import Inventory from './pages/Inventory';
 import Availability from './pages/Availability';
 import Items from './pages/admin/Items';
+import Discounts from './pages/admin/Discounts';
 import DataManager from './pages/admin/DataManager';
 import Bills from './pages/Bills';
 import CustomOrders from './pages/CustomOrders';
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/inventory" element={<ProtectedRoute requirePermission="inventory.view"><Inventory /></ProtectedRoute>} />
             <Route path="/availability" element={<ProtectedRoute requirePermission="inventory.view"><Availability /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute requirePermission="inventory.edit"><Items /></ProtectedRoute>} />
+            <Route path="/discounts" element={<ProtectedRoute requirePermission="discounts.manage"><Discounts /></ProtectedRoute>} />
             <Route path="/data" element={<DataManager />} />
             <Route path="/custom-orders" element={<CustomOrders />} />
             <Route path="/production" element={<ProtectedRoute requirePermission="production.edit"><Production /></ProtectedRoute>} />
