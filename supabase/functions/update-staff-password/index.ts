@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
     }
 
     const { user_id, password } = await req.json();
-    if (!user_id || !password || String(password).length < 6) {
-      return new Response(JSON.stringify({ error: "user_id and a password of at least 6 characters are required." }), {
+    if (!user_id || !password || String(password).length < 8) {
+      return new Response(JSON.stringify({ error: "user_id and a password of at least 8 characters are required." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

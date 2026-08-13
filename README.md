@@ -22,6 +22,7 @@ bakery-pos/
     ├── CLIENT_HANDOVER.md      Checklist for handing this off to the actual business owner
     ├── GETTING_STARTED_FOR_OWNERS.md  Plain-language guide to leave with a non-technical client
     ├── TAX_COMPLIANCE.md       Honest scope note on FBR/ZATCA-style government e-invoicing
+    ├── SECURITY.md             What's enforced, what was hardened, and what's recommended
     └── FREE_TIER_LIMITS.md     Real numbers + the backup strategy the free tier needs
 ```
 
@@ -57,6 +58,7 @@ Built out and working end to end, because these are the parts the brief calls ou
 - **Automatic discounts** (Admin → Discounts) — set a standing category-wide or item-specific discount once; it applies automatically as the item's selling price at billing time, so a cashier never types a discount for these. Gated by its own `discounts.manage` permission.
 - **Collapsible sidebar navigation** — each section (Sales, Operations, Insights, Admin) expands/collapses on click, auto-opening whichever section contains the page you're on.
 - **Keyboard shortcuts on Billing** — F2 search, F3 scan, F4 calculator, F8 hold, F9 complete, Esc clear — shown as a legend right on the page.
+- **Comprehensive activity logging** — branch changes, staff edits, permission changes, product/inventory changes, discount rules, custom orders, production records, and bulk imports are all now recorded (previously only billing and staff creation were), visible to the Owner/managers only — see `docs/SECURITY.md`.
 - **Live updates across tabs and users** — changes to branches, staff, permissions, stock, bills, custom orders, and the product catalog now show up automatically for everyone else, without a manual refresh (Supabase Realtime).
 - **Staff editing and password resets** — an Edit action per staff member (name, role template, and a "set new password" field with a show/hide toggle), backed by a second Edge Function since only the Admin API can change another user's password.
 - **Tax** — its own permission (`bills.tax`, allow/deny per user exactly like discounts), a Tax % field on the Billing screen, included in the total and on the printed receipt.
