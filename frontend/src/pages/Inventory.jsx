@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useRealtimeRefresh } from '../lib/realtime';
+import { logActivity } from '../lib/activityLog';
 
 export default function Inventory() {
   const { currentBranchId, can, isOwner } = useAuth();
@@ -46,6 +47,7 @@ export default function Inventory() {
       { onConflict: 'branch_id,item_id' }
     );
     if (upsertErr) { setError(upsertErr.message); return; }
+    logActivity('inventory.backfill', { branchId: currentBranchId, entityType: 'branch_item_stock', details: { count: missing.length } });
     load();
   }
 
@@ -69,6 +71,10 @@ export default function Inventory() {
     await supabase.from('stock_movements').insert({
       branch_id, item_id, quantity_delta: newQty - (row?.quantity || 0), reason: delta > 0 ? 'restock' : 'correction',
     });
+    logActivity(delta > 0 ? 'inventory.restock' : 'inventory.correction', {
+      branchId: branch_id, entityType: 'item', entityId: item_id,
+      details: { item: row?.items?.name, delta, new_quantity: newQty },
+    });
     setAmounts((a) => ({ ...a, [key]: '' }));
     load();
   }
@@ -81,6 +87,7 @@ export default function Inventory() {
       { onConflict: 'branch_id,item_id' }
     );
     if (upsertErr) { setError(upsertErr.message); return; }
+    logActivity('inventory.reorder_level_set', { branchId: branch_id, entityType: 'item', entityId: item_id, details: { item: row?.items?.name, reorder_level: value } });
     load();
   }
 

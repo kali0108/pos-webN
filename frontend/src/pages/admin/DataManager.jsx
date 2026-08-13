@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import PermissionGate from '../../components/PermissionGate';
+import { logActivity } from '../../lib/activityLog';
 
 function parseExcelFile(file) {
   return new Promise((resolve, reject) => {
@@ -166,6 +167,7 @@ export default function DataManager() {
       }
 
       setProductResult(result);
+      logActivity('data.products_imported', { entityType: 'items', details: { created: result.created, updated: result.updated, skipped: result.skipped.length } });
     } catch (err) {
       setProductResult({ created: 0, updated: 0, skipped: [err.message || 'Import failed.'] });
     } finally {
@@ -223,6 +225,7 @@ export default function DataManager() {
         result.updated = upsertRows.length;
       }
       setInventoryResult(result);
+      logActivity('data.inventory_imported', { branchId: currentBranchId, entityType: 'branch_item_stock', details: { updated: result.updated, skipped: result.skipped.length } });
     } catch (err) {
       setInventoryResult({ updated: 0, skipped: [err.message || 'Import failed.'] });
     } finally {

@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useRealtimeRefresh } from '../../lib/realtime';
 import PasswordInput from '../../components/PasswordInput';
+import { logActivity } from '../../lib/activityLog';
 
 export default function Staff() {
   const { profile: me } = useAuth();
@@ -70,6 +71,7 @@ export default function Staff() {
     setError(null);
     const { error } = await supabase.from('profiles').update({ is_active: !s.is_active }).eq('id', s.id);
     if (error) { setError(error.message); return; }
+    logActivity(s.is_active ? 'staff.deactivate' : 'staff.activate', { entityType: 'profile', entityId: s.id, details: { full_name: s.full_name, email: s.email } });
     loadAll();
   }
 
@@ -89,7 +91,7 @@ export default function Staff() {
         <form className="card" onSubmit={createStaff} style={{ maxWidth: 480, marginBottom: 20 }}>
           <div className="field"><label>Full name</label><input required value={newUser.full_name} onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })} /></div>
           <div className="field"><label>Email</label><input type="email" required value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} /></div>
-          <div className="field"><label>Temporary password</label><PasswordInput required minLength={6} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} autoComplete="new-password" /></div>
+          <div className="field"><label>Temporary password</label><PasswordInput required minLength={8} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} autoComplete="new-password" /></div>
           <div className="field">
             <label>Role template (starting point)</label>
             <select value={newUser.role_template_id} onChange={(e) => setNewUser({ ...newUser, role_template_id: e.target.value })}>
@@ -165,8 +167,8 @@ function EditUserModal({ user, roleTemplates, onClose, onSaved }) {
 
   async function save() {
     setError(null);
-    if (newPassword && newPassword.length < 6) {
-      setError('New password must be at least 6 characters.');
+    if (newPassword && newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
       return;
     }
     setSaving(true);
@@ -176,6 +178,7 @@ function EditUserModal({ user, roleTemplates, onClose, onSaved }) {
         .update({ full_name: fullName, ...(user.is_owner ? {} : { role_template_id: roleTemplateId || null }) })
         .eq('id', user.id);
       if (profErr) throw profErr;
+      logActivity('staff.update', { entityType: 'profile', entityId: user.id, details: { full_name: fullName, role_template_id: roleTemplateId || null } });
 
       if (newPassword) {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -216,7 +219,7 @@ function EditUserModal({ user, roleTemplates, onClose, onSaved }) {
 
         <div className="field">
           <label>Set new password (leave blank to keep the current one)</label>
-          <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" minLength={6} autoComplete="new-password" />
+          <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" minLength={8} autoComplete="new-password" />
         </div>
 
         {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
@@ -281,6 +284,13 @@ function PermissionMatrix({ user, branches, permissions, onClose }) {
     if (error) {
       setOverrides(previous); // roll back
       setError(`Couldn't update "${key}": ${error.message}`);
+    } else {
+      // Especially worth auditing: exactly who granted/revoked which
+      // permission, for whom, and when.
+      logActivity('permission.override_changed', {
+        entityType: 'profile', entityId: user.id,
+        details: { target_user: user.full_name, permission_key: key, new_value: value },
+      });
     }
   }
 
@@ -297,6 +307,10 @@ function PermissionMatrix({ user, branches, permissions, onClose }) {
     if (error) {
       setUserBranches(previous);
       setError(`Couldn't update branch access: ${error.message}`);
+    } else {
+      logActivity(has ? 'permission.branch_access_revoked' : 'permission.branch_access_granted', {
+        branchId, entityType: 'profile', entityId: user.id, details: { target_user: user.full_name },
+      });
     }
   }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useRealtimeRefresh } from '../../lib/realtime';
+import { logActivity } from '../../lib/activityLog';
 
 const empty = { name: '', sku: '', category_id: '', pricing_mode: 'unit', unit_label: 'pc', unit_price: '', cost_price: '' };
 
@@ -45,6 +46,7 @@ export default function Items() {
       ? await supabase.from('items').update(payload).eq('id', editingId).select().single()
       : await supabase.from('items').insert(payload).select().single();
     if (error) { setError(error.message); return; }
+    logActivity(editingId ? 'product.update' : 'product.create', { entityType: 'item', entityId: inserted?.id || editingId, details: { name: payload.name, sku: payload.sku, unit_price: payload.unit_price } });
 
     if (!editingId) {
       // New product: give it a (zero) stock row at every active branch
@@ -75,6 +77,7 @@ export default function Items() {
   async function toggleActive(item) {
     const { error } = await supabase.from('items').update({ is_active: !item.is_active }).eq('id', item.id);
     if (error) { setError(error.message); return; }
+    logActivity(item.is_active ? 'product.discontinue' : 'product.reactivate', { entityType: 'item', entityId: item.id, details: { name: item.name, sku: item.sku } });
     load();
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useRealtimeRefresh } from '../lib/realtime';
+import { logActivity } from '../lib/activityLog';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 
@@ -38,6 +39,7 @@ export default function Production() {
       { onConflict: 'branch_id,item_id,plan_date' }
     );
     if (err) { setError(err.message); return; }
+    logActivity('production.plan_saved', { branchId: currentBranchId, entityType: 'item', entityId: item_id, details: { date, planned_quantity: planned } });
     load();
   }
 
@@ -51,6 +53,7 @@ export default function Production() {
       actual_quantity: actual, wastage_quantity: wastage, recorded_by: user.id,
     });
     if (err) { setError(err.message); return; }
+    logActivity('production.actual_logged', { branchId: currentBranchId, entityType: 'item', entityId: item_id, details: { date, actual_quantity: actual, wastage_quantity: wastage } });
     load();
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useRealtimeRefresh } from '../../lib/realtime';
+import { logActivity } from '../../lib/activityLog';
 
 const empty = {
   code: '', name: '', address: '', phone: '',
@@ -47,10 +48,12 @@ export default function Branches() {
     if (editingId) {
       const { error } = await supabase.from('branches').update(payload).eq('id', editingId);
       if (error) { setError(error.message); return; }
+      logActivity('branch.update', { branchId: editingId, entityType: 'branch', entityId: editingId, details: { code: payload.code, name: payload.name } });
     } else {
       const { data: newBranch, error } = await supabase.from('branches').insert(payload).select().single();
       if (error) { setError(error.message); return; }
       if (newBranch) {
+        logActivity('branch.create', { branchId: newBranch.id, entityType: 'branch', entityId: newBranch.id, details: { code: payload.code, name: payload.name } });
         // Mirror what already happens for a NEW PRODUCT (which gets a
         // zero-stock row at every existing branch): a NEW BRANCH needs
         // a zero-stock row for every existing product too. Without
@@ -85,6 +88,7 @@ export default function Branches() {
     setError(null);
     const { error } = await supabase.from('branches').update({ is_active: !b.is_active }).eq('id', b.id);
     if (error) { setError(error.message); return; }
+    logActivity(b.is_active ? 'branch.deactivate' : 'branch.activate', { branchId: b.id, entityType: 'branch', entityId: b.id, details: { code: b.code, name: b.name } });
     load();
   }
 

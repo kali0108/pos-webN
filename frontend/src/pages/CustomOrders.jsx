@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import PermissionGate from '../components/PermissionGate';
 import { useRealtimeRefresh } from '../lib/realtime';
+import { logActivity } from '../lib/activityLog';
 
 const STATUSES = ['Placed', 'In Production', 'Ready', 'Delivered', 'Cancelled'];
 const STATUS_BADGE = { Placed: 'neutral', 'In Production': 'warning', Ready: 'success', Delivered: 'success', Cancelled: 'danger' };
@@ -25,8 +26,9 @@ export default function CustomOrders() {
   async function createOrder(e) {
     e.preventDefault();
     setError(null);
-    const { error } = await supabase.from('custom_orders').insert({ ...form, branch_id: currentBranchId });
+    const { data: inserted, error } = await supabase.from('custom_orders').insert({ ...form, branch_id: currentBranchId }).select().single();
     if (error) { setError(error.message); return; }
+    logActivity('custom_order.create', { branchId: currentBranchId, entityType: 'custom_order', entityId: inserted?.id, details: { customer_name: form.customer_name, total_amount: form.total_amount } });
     setForm({ customer_name: '', customer_phone: '', description: '', deposit_amount: 0, total_amount: 0, due_date: '' });
     setShowForm(false);
     load();
@@ -38,6 +40,7 @@ export default function CustomOrders() {
     const next = STATUSES[Math.min(idx + 1, 3)]; // never auto-advance into Cancelled
     const { error } = await supabase.from('custom_orders').update({ status: next }).eq('id', order.id);
     if (error) { setError(error.message); return; }
+    logActivity('custom_order.status_change', { branchId: currentBranchId, entityType: 'custom_order', entityId: order.id, details: { customer_name: order.customer_name, new_status: next } });
     await supabase.from('custom_order_status_history').insert({ order_id: order.id, status: next });
     load();
   }

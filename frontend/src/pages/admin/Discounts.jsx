@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useRealtimeRefresh } from '../../lib/realtime';
+import { logActivity } from '../../lib/activityLog';
 
 const empty = { label: '', scope: 'category', category_id: '', item_id: '', discount_type: 'percent', discount_value: '' };
 
@@ -44,6 +45,7 @@ export default function Discounts() {
     };
     const { error } = await supabase.from('discount_rules').insert(payload);
     if (error) { setError(error.message); return; }
+    logActivity('discount.create', { entityType: 'discount_rule', details: { label: payload.label, scope: payload.scope, discount_type: payload.discount_type, discount_value: payload.discount_value } });
     setForm(empty);
     load();
   }
@@ -52,6 +54,7 @@ export default function Discounts() {
     setError(null);
     const { error } = await supabase.from('discount_rules').update({ is_active: !rule.is_active }).eq('id', rule.id);
     if (error) { setError(error.message); return; }
+    logActivity(rule.is_active ? 'discount.pause' : 'discount.resume', { entityType: 'discount_rule', entityId: rule.id, details: { label: rule.label } });
     load();
   }
 
@@ -59,6 +62,7 @@ export default function Discounts() {
     setError(null);
     const { error } = await supabase.from('discount_rules').delete().eq('id', rule.id);
     if (error) { setError(error.message); return; }
+    logActivity('discount.delete', { entityType: 'discount_rule', entityId: rule.id, details: { label: rule.label } });
     load();
   }
 
