@@ -118,7 +118,7 @@ export default function Inventory() {
         </div>
       )}
 
-      <table>
+      <div className="table-wrap"><table>
         <thead>
           <tr><th>Item</th>{consolidated && <th>Branch</th>}<th className="num">Qty</th><th className="num">Reorder level</th>{canEdit && <th>Adjust stock</th>}</tr>
         </thead>
@@ -158,7 +158,7 @@ export default function Inventory() {
           })}
           {stock.length === 0 && <tr><td colSpan={5}>No stock records yet.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

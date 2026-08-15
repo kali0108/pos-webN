@@ -83,7 +83,7 @@ export default function Bills() {
         <div className="field" style={{ marginBottom: 0 }}><label>To</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
       </div>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Status</th><th className="num">Total</th><th /></tr></thead>
         <tbody>
           {filtered.map((b) => (
@@ -105,7 +105,7 @@ export default function Bills() {
           ))}
           {filtered.length === 0 && <tr><td colSpan={6}>No bills found.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
 
       {printing && <Receipt invoiceId={printing} onClose={() => setPrinting(null)} />}
 

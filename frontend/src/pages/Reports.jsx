@@ -98,7 +98,7 @@ export default function Reports() {
         />
       </div>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Invoice</th>{consolidated && <th>Branch</th>}<th>Date</th><th className="num">Total</th></tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -110,7 +110,7 @@ export default function Reports() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

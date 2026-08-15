@@ -130,7 +130,7 @@ export default function Items() {
         Show discontinued products too
       </label>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Name</th><th>SKU</th><th>Category</th><th className="num">Price</th><th>Status</th><th /></tr></thead>
         <tbody>
           {items.map((item) => (
@@ -148,7 +148,7 @@ export default function Items() {
           ))}
           {items.length === 0 && <tr><td colSpan={6}>No products yet — add your first one above.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

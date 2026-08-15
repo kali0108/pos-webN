@@ -116,7 +116,7 @@ export default function Staff() {
         </form>
       )}
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Name</th><th>Email</th><th>Template</th><th>Status</th><th /></tr></thead>
         <tbody>
           {staff.map((s) => (
@@ -135,7 +135,7 @@ export default function Staff() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       {selected && (
         <PermissionMatrix
@@ -330,6 +330,7 @@ function PermissionMatrix({ user, branches, permissions, onClose }) {
 
       <h3 style={{ marginTop: 18 }}>Permissions</h3>
       <p>"Default" follows the {user.role_templates?.name || 'role'} template. Override any individual function as needed.</p>
+      <div className="table-wrap">
       <table className="matrix-table">
         <thead><tr><th>Function</th><th>Template default</th><th>This user</th></tr></thead>
         <tbody>
@@ -365,7 +366,7 @@ function PermissionMatrix({ user, branches, permissions, onClose }) {
             </>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {user.is_owner && <p style={{ marginTop: 10 }}>The Owner account is unrestricted and ignores this matrix entirely.</p>}
 
       <button className="btn" style={{ marginTop: 14 }} onClick={onClose}>Close</button>

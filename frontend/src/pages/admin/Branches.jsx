@@ -9,8 +9,6 @@ const empty = {
   tax_label: 'Tax', tax_rate_percent: 0, currency_code: '', currency_symbol: '',
 };
 
-// A few common presets so setting up a new country isn't a guessing
-// game — still fully editable, this is just a helpful starting point.
 const TAX_PRESETS = [
   { label: 'Pakistan — Sales Tax 17%', tax_label: 'Sales Tax', tax_rate_percent: 17, currency_code: 'PKR', currency_symbol: 'Rs' },
   { label: 'Saudi Arabia — VAT 15%', tax_label: 'VAT', tax_rate_percent: 15, currency_code: 'SAR', currency_symbol: 'SAR' },
@@ -25,14 +23,23 @@ export default function Branches() {
   const [branches, setBranches] = useState([]);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
   useRealtimeRefresh('branches', load);
 
   async function load() {
-    const { data } = await supabase.from('branches').select('*').order('name');
-    setBranches(data || []);
+    setLoading(true);
+    const { data, error } = await supabase.from('branches').select('*').order('name');
+    if (error) {
+      setError(`Couldn't load branches: ${error.message}`);
+    } else {
+      setError(null);
+      setBranches(data || []);
+    }
+    setLoading(false);
   }
 
   function applyPreset(label) {
@@ -72,6 +79,7 @@ export default function Branches() {
     }
     setForm(empty);
     setEditingId(null);
+    setShowForm(false);
     await load();
     await refresh(); // pick up the new branch (and any tax/currency change) in the current user's switcher
   }
@@ -82,6 +90,7 @@ export default function Branches() {
       tax_label: b.tax_label, tax_rate_percent: b.tax_rate_percent, currency_code: b.currency_code, currency_symbol: b.currency_symbol,
     });
     setEditingId(b.id);
+    setShowForm(true);
   }
 
   async function toggleActive(b) {
@@ -96,58 +105,76 @@ export default function Branches() {
     <div>
       <h1>Branches</h1>
       <p>Add, edit, or deactivate outlets — takes effect for every branch immediately, no deploy needed. Each branch has its own tax rate and currency, so this works the same way whether a branch is in Pakistan, Saudi Arabia, or anywhere else.</p>
-      {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
-
-      <form className="card" onSubmit={save} style={{ maxWidth: 520, marginBottom: 20 }}>
-        <h2>{editingId ? 'Edit branch' : 'New branch'}</h2>
-        <div className="grid grid-2">
-          <div className="field"><label>Branch code (used as invoice prefix)</label><input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} disabled={!!editingId} /></div>
-          <div className="field"><label>Branch name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+      {error && (
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--danger)' }}>
+          <p style={{ color: 'var(--danger)' }}>{error}</p>
+          <button className="btn btn-sm" onClick={load}>Retry</button>
         </div>
-        <div className="field"><label>Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-        <div className="field"><label>Contact number</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+      )}
 
-        <div className="field">
-          <label>Country / tax preset (optional shortcut)</label>
-          <select defaultValue="" onChange={(e) => applyPreset(e.target.value)}>
-            <option value="" disabled>— pick a starting point, then adjust below —</option>
-            {TAX_PRESETS.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
-          </select>
-        </div>
-        <div className="grid grid-3">
-          <div className="field"><label>Tax name</label><input value={form.tax_label} onChange={(e) => setForm({ ...form, tax_label: e.target.value })} placeholder="Sales Tax, VAT, GST…" /></div>
-          <div className="field"><label>Tax rate %</label><input type="number" className="num" step="0.01" value={form.tax_rate_percent} onChange={(e) => setForm({ ...form, tax_rate_percent: e.target.value })} /></div>
-          <div className="field"><label>Currency symbol</label><input value={form.currency_symbol} onChange={(e) => setForm({ ...form, currency_symbol: e.target.value })} placeholder="Rs, SAR, $, £…" /></div>
-        </div>
-        <div className="field" style={{ maxWidth: 160 }}><label>Currency code</label><input value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value.toUpperCase() })} placeholder="PKR, SAR, USD…" /></div>
-        <p style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
-          This tax rate applies automatically to every bill at this branch. Cashiers see it on the bill but can't change it — only staff with the "Apply tax" permission can override it for a specific sale.
-        </p>
+      <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => { setShowForm((s) => !s); if (showForm) { setForm(empty); setEditingId(null); } }}>
+        {showForm ? 'Cancel' : '+ New branch'}
+      </button>
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary" type="submit">{editingId ? 'Save changes' : 'Add branch'}</button>
-          {editingId && <button className="btn" type="button" onClick={() => { setForm(empty); setEditingId(null); }}>Cancel</button>}
-        </div>
-      </form>
+      {showForm && (
+        <form className="card" onSubmit={save} style={{ maxWidth: 520, marginBottom: 20 }}>
+          <h2>{editingId ? 'Edit branch' : 'New branch'}</h2>
+          <div className="grid grid-2">
+            <div className="field"><label>Branch code (used as invoice prefix)</label><input required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} disabled={!!editingId} /></div>
+            <div className="field"><label>Branch name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          </div>
+          <div className="field"><label>Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+          <div className="field"><label>Contact number</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
 
-      <table>
-        <thead><tr><th>Code</th><th>Name</th><th>Tax</th><th>Currency</th><th>Status</th><th /></tr></thead>
-        <tbody>
-          {branches.map((b) => (
-            <tr key={b.id}>
-              <td className="num">{b.code}</td>
-              <td>{b.name}</td>
-              <td>{b.tax_label} {b.tax_rate_percent}%</td>
-              <td>{b.currency_code} ({b.currency_symbol})</td>
-              <td><span className={`badge ${b.is_active ? 'badge-success' : 'badge-neutral'}`}>{b.is_active ? 'Active' : 'Inactive'}</span></td>
-              <td>
-                <button className="btn btn-sm" onClick={() => edit(b)}>Edit</button>{' '}
-                <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.is_active ? 'Deactivate' : 'Reactivate'}</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <div className="field">
+            <label>Country / tax preset (optional shortcut)</label>
+            <select defaultValue="" onChange={(e) => applyPreset(e.target.value)}>
+              <option value="" disabled>— pick a starting point, then adjust below —</option>
+              {TAX_PRESETS.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-3">
+            <div className="field"><label>Tax name</label><input value={form.tax_label} onChange={(e) => setForm({ ...form, tax_label: e.target.value })} placeholder="Sales Tax, VAT, GST…" /></div>
+            <div className="field"><label>Tax rate %</label><input type="number" className="num" step="0.01" value={form.tax_rate_percent} onChange={(e) => setForm({ ...form, tax_rate_percent: e.target.value })} /></div>
+            <div className="field"><label>Currency symbol</label><input value={form.currency_symbol} onChange={(e) => setForm({ ...form, currency_symbol: e.target.value })} placeholder="Rs, SAR, $, £…" /></div>
+          </div>
+          <div className="field" style={{ maxWidth: 160 }}><label>Currency code</label><input value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value.toUpperCase() })} placeholder="PKR, SAR, USD…" /></div>
+          <p style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
+            This tax rate applies automatically to every bill at this branch. Cashiers see it on the bill but can't change it — only staff with the "Apply tax" permission can override it for a specific sale.
+          </p>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" type="submit">{editingId ? 'Save changes' : 'Add branch'}</button>
+            <button className="btn" type="button" onClick={() => { setForm(empty); setEditingId(null); setShowForm(false); }}>Cancel</button>
+          </div>
+        </form>
+      )}
+
+      {loading && branches.length === 0 && !error && <p>Loading branches…</p>}
+      {!loading && branches.length === 0 && !error && <p>No branches yet — add your first one above.</p>}
+
+      {branches.length > 0 && (
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Code</th><th>Name</th><th>Tax</th><th>Currency</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {branches.map((b) => (
+                <tr key={b.id}>
+                  <td className="num">{b.code}</td>
+                  <td>{b.name}</td>
+                  <td>{b.tax_label} {b.tax_rate_percent}%</td>
+                  <td>{b.currency_code} ({b.currency_symbol})</td>
+                  <td><span className={`badge ${b.is_active ? 'badge-success' : 'badge-neutral'}`}>{b.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td>
+                    <button className="btn btn-sm" onClick={() => edit(b)}>Edit</button>{' '}
+                    <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.is_active ? 'Deactivate' : 'Reactivate'}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

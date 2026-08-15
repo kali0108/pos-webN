@@ -21,6 +21,7 @@ Full, runnable SQL is the source of truth, in `supabase/migrations/`, applied in
 | `0015_fix_tax_permission_check.sql` | **Critical fix** — the billing-permission trigger was rejecting every bill from a user without `bills.tax` at a branch with a nonzero tax rate, since tax now applies automatically to everyone. Now it only blocks an actual *override* of the auto-calculated amount |
 | `0016_discount_rules.sql` | Adds `discount_rules` — standing category-wide or item-specific discounts that apply automatically at billing time, plus the `discounts.manage` permission |
 | `0017_fix_branch_manager_defaults.sql` | Catch-up fix for databases that already ran the (buggy) original `0012`/`0016` — see the file header for why the original inserts silently did nothing |
+| `0018_hide_owner_profile.sql` | Hides the Owner's profile from every non-Owner user, even a delegated manager with `staff.manage` — previously any staff.manage holder could see and edit the Owner's account |
 
 This document is the plain-English map of what's in there and why.
 

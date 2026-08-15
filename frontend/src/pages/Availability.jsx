@@ -40,8 +40,7 @@ export default function Availability() {
 
       <input placeholder="Search product name or SKU…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 320, marginBottom: 16 }} />
 
-      <div style={{ overflowX: 'auto' }}>
-        <table>
+      <div className="table-wrap"><table>
           <thead>
             <tr>
               <th>Product</th>
@@ -71,8 +70,7 @@ export default function Availability() {
             ))}
             {filtered.length === 0 && <tr><td colSpan={branches.length + 1}>No products found.</td></tr>}
           </tbody>
-        </table>
-      </div>
+        </table></div>
     </div>
   );
 }

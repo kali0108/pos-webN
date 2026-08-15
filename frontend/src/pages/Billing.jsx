@@ -437,7 +437,7 @@ export default function Billing() {
           {heldBills.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <h2>Held bills (this branch)</h2>
-              <table>
+              <div className="table-wrap"><table>
                 <thead><tr><th>Invoice</th><th>Customer</th><th className="num">Total</th><th /></tr></thead>
                 <tbody>
                   {heldBills.map((h) => (
@@ -449,7 +449,7 @@ export default function Billing() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
 

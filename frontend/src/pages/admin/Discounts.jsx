@@ -119,7 +119,7 @@ export default function Discounts() {
         <button className="btn btn-primary" type="submit">Add discount</button>
       </form>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Name</th><th>Applies to</th><th className="num">Discount</th><th>Status</th><th /></tr></thead>
         <tbody>
           {rules.map((r) => (
@@ -136,7 +136,7 @@ export default function Discounts() {
           ))}
           {rules.length === 0 && <tr><td colSpan={5}>No discounts set up yet.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

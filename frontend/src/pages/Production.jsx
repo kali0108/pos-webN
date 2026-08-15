@@ -68,7 +68,7 @@ export default function Production() {
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead>
           <tr><th>Item</th><th className="num">Planned</th><th className="num">Actual so far</th><th className="num">Wastage so far</th><th>Log actual</th></tr>
         </thead>
@@ -102,7 +102,7 @@ export default function Production() {
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

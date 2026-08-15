@@ -73,7 +73,7 @@ export default function CustomOrders() {
         </form>
       )}
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>Customer</th><th>Details</th><th className="num">Deposit</th><th className="num">Total</th><th>Due</th><th>Status</th><th /></tr></thead>
         <tbody>
           {orders.map((o) => (
@@ -95,7 +95,7 @@ export default function CustomOrders() {
           ))}
           {orders.length === 0 && <tr><td colSpan={7}>No custom orders for this branch yet.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

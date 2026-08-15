@@ -40,7 +40,7 @@ export default function ActivityLog() {
         </select>
       </div>
 
-      <table>
+      <div className="table-wrap"><table>
         <thead><tr><th>When</th><th>Who</th><th>Branch</th><th>Action</th><th>Details</th></tr></thead>
         <tbody>
           {logs.map((l) => (
@@ -54,7 +54,7 @@ export default function ActivityLog() {
           ))}
           {logs.length === 0 && <tr><td colSpan={5}>No activity recorded yet.</td></tr>}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
