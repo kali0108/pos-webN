@@ -19,6 +19,8 @@ import Production from './pages/Production';
 import Branches from './pages/admin/Branches';
 import Staff from './pages/admin/Staff';
 import ActivityLog from './pages/admin/ActivityLog';
+import DangerZone from './pages/admin/DangerZone';
+import CustomCursor from './components/CustomCursor';
 
 // Reports pulls in Chart.js + jsPDF + SheetJS — a few hundred KB
 // nobody needs just to ring up a bill. Splitting it into its own
@@ -28,6 +30,7 @@ const Reports = lazy(() => import('./pages/Reports'));
 export default function App() {
   return (
     <BrowserRouter>
+      <CustomCursor />
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -54,6 +57,7 @@ export default function App() {
             <Route path="/admin/branches" element={<ProtectedRoute requirePermission="branches.manage"><Branches /></ProtectedRoute>} />
             <Route path="/admin/staff" element={<ProtectedRoute requirePermission="staff.manage"><Staff /></ProtectedRoute>} />
             <Route path="/admin/activity" element={<ProtectedRoute requirePermission="staff.manage"><ActivityLog /></ProtectedRoute>} />
+            <Route path="/admin/danger-zone" element={<ProtectedRoute requireOwner><DangerZone /></ProtectedRoute>} />
           </Route>
         </Routes>
       </AuthProvider>

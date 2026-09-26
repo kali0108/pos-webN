@@ -22,6 +22,9 @@ Full, runnable SQL is the source of truth, in `supabase/migrations/`, applied in
 | `0016_discount_rules.sql` | Adds `discount_rules` — standing category-wide or item-specific discounts that apply automatically at billing time, plus the `discounts.manage` permission |
 | `0017_fix_branch_manager_defaults.sql` | Catch-up fix for databases that already ran the (buggy) original `0012`/`0016` — see the file header for why the original inserts silently did nothing |
 | `0018_hide_owner_profile.sql` | Hides the Owner's profile from every non-Owner user, even a delegated manager with `staff.manage` — previously any staff.manage holder could see and edit the Owner's account |
+| `0019_hide_owner_branch_access.sql` | Closes a related gap: a delegated manager could still change which branches the Owner has access to, even after 0018 hid the Owner's profile itself |
+| `0020_relax_log_fks_for_delete.sql` | Loosens 3 purely-informational foreign keys (activity log entries, override-edit attribution) so a branch/item/staff member with no real business history can actually be deleted — every foreign key representing a real transaction (invoices, refunds, production, etc.) is untouched and still blocks deletion on purpose |
+| `0021_delete_and_reset.sql` | Adds DELETE policies for items and branches (previously blocked entirely — RLS defaults to deny), plus the Owner-only, type-to-confirm `reset_all_business_data()` function used by the Danger Zone page |
 
 This document is the plain-English map of what's in there and why.
 

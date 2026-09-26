@@ -52,6 +52,7 @@ The very first login can't be created by SQL alone (it has to exist in Supabase 
 ```bash
 supabase functions deploy create-staff-user
 supabase functions deploy update-staff-password
+supabase functions deploy delete-staff-user
 ```
 
 No secrets to configure manually — `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically by the platform into every Edge Function.

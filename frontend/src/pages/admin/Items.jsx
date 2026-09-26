@@ -81,6 +81,21 @@ export default function Items() {
     load();
   }
 
+  async function remove(item) {
+    setError(null);
+    if (!window.confirm(`Permanently delete "${item.name}"? This can't be undone. If it's ever been sold or used in a production record, the delete will be blocked automatically — discontinue it instead in that case.`)) return;
+    const { error } = await supabase.from('items').delete().eq('id', item.id);
+    if (error) {
+      const looksLikeHistory = /foreign key|violat|constraint/i.test(error.message);
+      setError(looksLikeHistory
+        ? `"${item.name}" has been sold or used in production records and can't be deleted — use Discontinue instead to hide it without losing that history.`
+        : error.message);
+      return;
+    }
+    logActivity('product.delete', { entityType: 'item', entityId: item.id, details: { name: item.name, sku: item.sku } });
+    load();
+  }
+
   return (
     <div>
       <h1>Products</h1>
@@ -142,7 +157,8 @@ export default function Items() {
               <td><span className={`badge ${item.is_active ? 'badge-success' : 'badge-neutral'}`}>{item.is_active ? 'Active' : 'Discontinued'}</span></td>
               <td>
                 <button className="btn btn-sm" onClick={() => edit(item)}>Edit</button>{' '}
-                <button className="btn btn-sm" onClick={() => toggleActive(item)}>{item.is_active ? 'Discontinue' : 'Reactivate'}</button>
+                <button className="btn btn-sm" onClick={() => toggleActive(item)}>{item.is_active ? 'Discontinue' : 'Reactivate'}</button>{' '}
+                <button className="btn btn-sm btn-danger" onClick={() => remove(item)}>Delete</button>
               </td>
             </tr>
           ))}

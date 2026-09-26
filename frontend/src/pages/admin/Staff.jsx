@@ -75,6 +75,26 @@ export default function Staff() {
     loadAll();
   }
 
+  async function removeStaff(s) {
+    setError(null);
+    if (!window.confirm(`Permanently delete "${s.full_name}"'s account? This can't be undone. If they have any bills, refunds, or other records, the delete will be blocked automatically — deactivate them instead in that case.`)) return;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.access_token) throw new Error('Your session has expired — sign in again and retry.');
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-staff-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionData.session.access_token}` },
+        body: JSON.stringify({ user_id: s.id }),
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Unexpected response (status ${res.status}). Is delete-staff-user deployed?`); }
+      if (!res.ok) throw new Error(json.error || 'Failed to delete account');
+      loadAll();
+    } catch (err) {
+      setError(err.message || 'Something went wrong.');
+    }
+  }
+
   if (!me) return <div className="page-loading">Loading…</div>;
 
   return (
@@ -129,7 +149,10 @@ export default function Staff() {
                 <button className="btn btn-sm" onClick={() => setSelected(s)}>Permissions</button>{' '}
                 <button className="btn btn-sm" onClick={() => setEditing(s)}>Edit</button>{' '}
                 {!s.is_owner && s.id !== me?.id && (
-                  <button className="btn btn-sm" onClick={() => toggleActive(s)}>{s.is_active ? 'Deactivate' : 'Reactivate'}</button>
+                  <>
+                    <button className="btn btn-sm" onClick={() => toggleActive(s)}>{s.is_active ? 'Deactivate' : 'Reactivate'}</button>{' '}
+                    <button className="btn btn-sm btn-danger" onClick={() => removeStaff(s)}>Delete</button>
+                  </>
                 )}
               </td>
             </tr>

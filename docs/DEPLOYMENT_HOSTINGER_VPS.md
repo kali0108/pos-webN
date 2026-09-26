@@ -133,6 +133,7 @@ Self-hosted Edge Functions live as files on the server rather than being deploye
 ```bash
 mkdir -p volumes/functions/create-staff-user
 mkdir -p volumes/functions/update-staff-password
+mkdir -p volumes/functions/delete-staff-user
 mkdir -p volumes/functions/_shared
 ```
 
@@ -140,6 +141,7 @@ Copy the three files from this project's `supabase/functions/` folder to the mat
 
 - `supabase/functions/create-staff-user/index.ts` → `volumes/functions/create-staff-user/index.ts`
 - `supabase/functions/update-staff-password/index.ts` → `volumes/functions/update-staff-password/index.ts`
+- `supabase/functions/delete-staff-user/index.ts` → `volumes/functions/delete-staff-user/index.ts`
 - `supabase/functions/_shared/cors.ts` → `volumes/functions/_shared/cors.ts`
 
 Then pick up the new functions:

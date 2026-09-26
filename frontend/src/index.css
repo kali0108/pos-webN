@@ -21,6 +21,10 @@
   --radius: 8px;
   --shadow-sm: 0 1px 2px rgba(33, 28, 23, 0.08);
   --shadow-md: 0 4px 16px rgba(33, 28, 23, 0.10);
+
+  /* Custom cursor accent (see .cursor-outer / .cursor-inner below) */
+  --cursor-accent: #dc2626;
+  --cursor-accent-soft: rgba(220, 38, 38, 0.35);
 }
 
 * { box-sizing: border-box; }
@@ -363,3 +367,70 @@ label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 
 .calc-key:hover { filter: brightness(0.97); }
 .calc-key.op { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .calc-key.wide { grid-column: span 2; }
+
+/* ---- Custom cursor ----
+   Only on devices with a real mouse (hover:none + pointer:coarse
+   covers phones/tablets) — never hides the native cursor on a touch
+   screen, where there's no pointer to draw an alternative for. */
+body { cursor: none; }
+@media (hover: none) and (pointer: coarse) {
+  body { cursor: auto; }
+  .cursor-outer, .cursor-inner { display: none; }
+}
+
+.cursor-outer, .cursor-inner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.cursor-inner {
+  width: 6px;
+  height: 6px;
+  background: var(--cursor-accent);
+}
+
+.cursor-outer {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--cursor-accent-soft);
+  transition: width 0.2s ease, height 0.2s ease, border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+}
+
+body.cursor-hover .cursor-outer {
+  width: 56px;
+  height: 56px;
+  background: var(--cursor-accent-soft);
+  border-color: var(--cursor-accent);
+}
+
+body.cursor-active .cursor-outer {
+  width: 28px;
+  height: 28px;
+}
+
+body.cursor-hidden .cursor-outer,
+body.cursor-hidden .cursor-inner {
+  opacity: 0;
+}
+
+.cursor-ripple {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cursor-accent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 9998;
+  animation: cursorRipple 0.6s ease-out forwards;
+}
+@keyframes cursorRipple {
+  to { width: 70px; height: 70px; opacity: 0; border-width: 1px; }
+}

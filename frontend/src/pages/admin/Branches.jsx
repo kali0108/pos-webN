@@ -101,6 +101,22 @@ export default function Branches() {
     load();
   }
 
+  async function remove(b) {
+    setError(null);
+    if (!window.confirm(`Permanently delete "${b.name}"? This can't be undone. If this branch has any bills, orders, or production records, the delete will be blocked automatically — deactivate it instead in that case.`)) return;
+    const { error } = await supabase.from('branches').delete().eq('id', b.id);
+    if (error) {
+      const looksLikeHistory = /foreign key|violat|constraint/i.test(error.message);
+      setError(looksLikeHistory
+        ? `"${b.name}" has existing bills, orders, or production records and can't be deleted — use Deactivate instead to hide it without losing that history.`
+        : error.message);
+      return;
+    }
+    logActivity('branch.delete', { entityType: 'branch', entityId: b.id, details: { code: b.code, name: b.name } });
+    load();
+    refresh();
+  }
+
   return (
     <div>
       <h1>Branches</h1>
@@ -167,7 +183,8 @@ export default function Branches() {
                   <td><span className={`badge ${b.is_active ? 'badge-success' : 'badge-neutral'}`}>{b.is_active ? 'Active' : 'Inactive'}</span></td>
                   <td>
                     <button className="btn btn-sm" onClick={() => edit(b)}>Edit</button>{' '}
-                    <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.is_active ? 'Deactivate' : 'Reactivate'}</button>
+                    <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.is_active ? 'Deactivate' : 'Reactivate'}</button>{' '}
+                    <button className="btn btn-sm btn-danger" onClick={() => remove(b)}>Delete</button>
                   </td>
                 </tr>
               ))}

@@ -95,6 +95,7 @@ export default function Layout() {
               {(isOwner || can('staff.manage')) && <NavItem to="/admin/staff" onNavigate={closeMobileNav}>Staff & Permissions</NavItem>}
               {(isOwner || can('discounts.manage')) && <NavItem to="/discounts" onNavigate={closeMobileNav}>Discounts</NavItem>}
               {(isOwner || can('staff.manage')) && <NavItem to="/admin/activity" onNavigate={closeMobileNav}>Activity Log</NavItem>}
+              {isOwner && <NavItem to="/admin/danger-zone" onNavigate={closeMobileNav}>Danger Zone</NavItem>}
             </NavGroup>
           )}
         </nav>
