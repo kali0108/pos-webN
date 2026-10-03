@@ -19,7 +19,7 @@ export default function ActivityLog() {
   async function load() {
     let query = supabase
       .from('activity_log')
-      .select('*, profiles ( full_name ), branches ( name )')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(200);
     if (filterUser) query = query.eq('user_id', filterUser);
@@ -46,8 +46,8 @@ export default function ActivityLog() {
           {logs.map((l) => (
             <tr key={l.id}>
               <td className="num">{new Date(l.created_at).toLocaleString()}</td>
-              <td>{l.profiles?.full_name}</td>
-              <td>{l.branches?.name || '—'}</td>
+              <td>{l.user_name || '—'}</td>
+              <td>{l.branch_name || '—'}</td>
               <td>{l.action}</td>
               <td style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{l.details ? JSON.stringify(l.details) : ''}</td>
             </tr>

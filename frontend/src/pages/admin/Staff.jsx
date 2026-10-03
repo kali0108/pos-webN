@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRealtimeRefresh } from '../../lib/realtime';
 import PasswordInput from '../../components/PasswordInput';
 import { logActivity } from '../../lib/activityLog';
+import ConfirmPasswordModal from '../../components/ConfirmPasswordModal';
 
 export default function Staff() {
   const { profile: me } = useAuth();
@@ -13,6 +14,7 @@ export default function Staff() {
   const [permissions, setPermissions] = useState([]);
   const [selected, setSelected] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [deletingStaff, setDeletingStaff] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [newUser, setNewUser] = useState({ full_name: '', email: '', password: '', role_template_id: '', branch_ids: [] });
   const [error, setError] = useState(null);
@@ -75,24 +77,20 @@ export default function Staff() {
     loadAll();
   }
 
-  async function removeStaff(s) {
-    setError(null);
-    if (!window.confirm(`Permanently delete "${s.full_name}"'s account? This can't be undone. If they have any bills, refunds, or other records, the delete will be blocked automatically — deactivate them instead in that case.`)) return;
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session?.access_token) throw new Error('Your session has expired — sign in again and retry.');
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-staff-user`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionData.session.access_token}` },
-        body: JSON.stringify({ user_id: s.id }),
-      });
-      let json;
-      try { json = await res.json(); } catch { throw new Error(`Unexpected response (status ${res.status}). Is delete-staff-user deployed?`); }
-      if (!res.ok) throw new Error(json.error || 'Failed to delete account');
-      loadAll();
-    } catch (err) {
-      setError(err.message || 'Something went wrong.');
-    }
+  async function confirmDeleteStaff(password) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.access_token) return 'Your session has expired — sign in again and retry.';
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-staff-user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionData.session.access_token}` },
+      body: JSON.stringify({ user_id: deletingStaff.id, password }),
+    });
+    let json;
+    try { json = await res.json(); } catch { return `Unexpected response (status ${res.status}). Is delete-staff-user deployed?`; }
+    if (!res.ok) return json.error || 'Failed to delete account';
+    setDeletingStaff(null);
+    loadAll();
+    return null;
   }
 
   if (!me) return <div className="page-loading">Loading…</div>;
@@ -151,7 +149,7 @@ export default function Staff() {
                 {!s.is_owner && s.id !== me?.id && (
                   <>
                     <button className="btn btn-sm" onClick={() => toggleActive(s)}>{s.is_active ? 'Deactivate' : 'Reactivate'}</button>{' '}
-                    <button className="btn btn-sm btn-danger" onClick={() => removeStaff(s)}>Delete</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => setDeletingStaff(s)}>Delete</button>
                   </>
                 )}
               </td>
@@ -166,6 +164,16 @@ export default function Staff() {
           branches={branches}
           permissions={permissions}
           onClose={() => { setSelected(null); loadAll(); }}
+        />
+      )}
+
+      {deletingStaff && (
+        <ConfirmPasswordModal
+          title={`Delete ${deletingStaff.full_name}'s account?`}
+          message="This permanently removes their login. Bills, refunds and other records they created are kept, and still show their name."
+          confirmLabel="Delete account"
+          onConfirm={confirmDeleteStaff}
+          onClose={() => setDeletingStaff(null)}
         />
       )}
 

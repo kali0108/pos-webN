@@ -434,3 +434,40 @@ body.cursor-hidden .cursor-inner {
 @keyframes cursorRipple {
   to { width: 70px; height: 70px; opacity: 0; border-width: 1px; }
 }
+
+/* ---- Refund mode picker ---- */
+.mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+@media (max-width: 640px) { .mode-grid { grid-template-columns: 1fr; } }
+.mode-card {
+  text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; font-size: 13px; color: var(--ink);
+}
+.mode-card span { color: var(--ink-soft); font-size: 12px; line-height: 1.4; }
+.mode-card.selected { border-color: var(--accent); background: var(--accent-soft); }
+.mode-card:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- Dashboard ---- */
+.dash-controls { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+.dash-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.dash-range { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.dash-range input, .dash-range select { width: auto; }
+.dash-kpis { margin-top: 16px; }
+.kpi .kpi-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); }
+.kpi .kpi-value { font-size: 26px; font-weight: 700; margin: 6px 0 2px; overflow-wrap: anywhere; }
+.kpi .kpi-sub { font-size: 12px; color: var(--ink-soft); }
+.kpi-good .kpi-value { color: var(--success); }
+.kpi-bad .kpi-value { color: var(--danger); }
+.kpi-warn .kpi-value { color: var(--warning); }
+.pnl-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
+.pnl-row.strong { font-weight: 700; border-bottom: 1px solid var(--border); }
+.pnl-row.tone-good { color: var(--success); }
+.pnl-row.tone-bad { color: var(--danger); }
+.bar-row { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; font-size: 14px; }
+.bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
+.bar-track { background: var(--surface-sunken); border-radius: 999px; height: 10px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.bar-value small { color: var(--ink-soft); }
+.adj-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.adj-form input, .adj-form select { width: auto; min-width: 120px; }
+.adj-form .field input { width: 100%; }

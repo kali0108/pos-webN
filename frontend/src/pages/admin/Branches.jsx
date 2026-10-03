@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useRealtimeRefresh } from '../../lib/realtime';
 import { logActivity } from '../../lib/activityLog';
+import ConfirmPasswordModal from '../../components/ConfirmPasswordModal';
 
 const empty = {
   code: '', name: '', address: '', phone: '',
@@ -26,6 +27,7 @@ export default function Branches() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => { load(); }, []);
   useRealtimeRefresh('branches', load);
@@ -101,20 +103,16 @@ export default function Branches() {
     load();
   }
 
-  async function remove(b) {
-    setError(null);
-    if (!window.confirm(`Permanently delete "${b.name}"? This can't be undone. If this branch has any bills, orders, or production records, the delete will be blocked automatically — deactivate it instead in that case.`)) return;
-    const { error } = await supabase.from('branches').delete().eq('id', b.id);
-    if (error) {
-      const looksLikeHistory = /foreign key|violat|constraint/i.test(error.message);
-      setError(looksLikeHistory
-        ? `"${b.name}" has existing bills, orders, or production records and can't be deleted — use Deactivate instead to hide it without losing that history.`
-        : error.message);
-      return;
-    }
-    logActivity('branch.delete', { entityType: 'branch', entityId: b.id, details: { code: b.code, name: b.name } });
+  // Deleting is password-protected on the server (delete_branch RPC),
+  // and the branch's bills/records are kept — see History.
+  async function confirmDelete(password) {
+    const { data, error } = await supabase.rpc('delete_branch', { p_branch_id: deleting.id, p_password: password });
+    if (error) return error.message;
+    if (!data?.ok) return data?.error || 'Could not delete this branch.';
+    setDeleting(null);
     load();
     refresh();
+    return null;
   }
 
   return (
@@ -184,13 +182,23 @@ export default function Branches() {
                   <td>
                     <button className="btn btn-sm" onClick={() => edit(b)}>Edit</button>{' '}
                     <button className="btn btn-sm" onClick={() => toggleActive(b)}>{b.is_active ? 'Deactivate' : 'Reactivate'}</button>{' '}
-                    <button className="btn btn-sm btn-danger" onClick={() => remove(b)}>Delete</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => setDeleting(b)}>Delete</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {deleting && (
+        <ConfirmPasswordModal
+          title={`Delete "${deleting.name}"?`}
+          message="This permanently removes the branch, its stock levels and staff assignments. Every bill, refund, order and production record it ever had is KEPT in History (with the branch's name), so your accounts stay complete."
+          confirmLabel="Delete branch"
+          onConfirm={confirmDelete}
+          onClose={() => setDeleting(null)}
+        />
       )}
     </div>
   );

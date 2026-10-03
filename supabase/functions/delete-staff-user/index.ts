@@ -1,13 +1,14 @@
 // supabase/functions/delete-staff-user/index.ts
 //
-// Permanently deletes a staff login. This is different from
-// deactivating (profiles.is_active = false, reversible, keeps all
-// history intact) — a delete is only possible at all if the account
-// has no real business history (bills, refunds, production records,
-// etc. all reference profiles with a protective foreign key that
-// blocks this at the database level; see
-// supabase/migrations/0020_relax_log_fks_for_delete.sql for exactly
-// which references were loosened and which were deliberately not).
+// Permanently deletes a staff login. Different from deactivating
+// (reversible, keeps the login). The person's bills, refunds and other
+// records are NOT deleted — they keep the person's name as plain text
+// (see supabase/migrations/0022_archive_on_delete.sql), so accounting
+// and tracking stay complete.
+//
+// The caller must re-enter their own password, verified here on the
+// server (not just prompted for in the browser) by actually signing
+// in with it against Supabase Auth.
 //
 // Deploy: supabase functions deploy delete-staff-user
 
@@ -40,7 +41,30 @@ Deno.serve(async (req) => {
     }
 
     const { data: caller } = await callerClient.auth.getUser();
-    const { user_id } = await req.json();
+    const { user_id, password } = await req.json();
+
+    // Server-side password re-check. A throwaway client with no
+    // stored session signs in as the caller; success = right password.
+    // (Supabase Auth rate-limits repeated failures on its side.)
+    if (!password || !caller?.user?.email) {
+      return new Response(JSON.stringify({ error: "Enter your password to confirm." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const verifier = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    const { error: pwErr } = await verifier.auth.signInWithPassword({ email: caller.user.email, password });
+    if (pwErr) {
+      return new Response(JSON.stringify({ error: "Incorrect password." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!user_id) {
       return new Response(JSON.stringify({ error: "user_id is required." }), {
         status: 400,
@@ -71,21 +95,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Deletes the auth.users row; profiles cascades automatically
-    // (see profiles.id's own foreign key). If this staff member has
-    // any real business history (invoices.created_by, refunds, etc.),
-    // Postgres rejects the whole cascade with a foreign-key error,
-    // which surfaces here as updateErr/deleteErr below — deactivating
-    // is the correct action for that case, not deleting.
+    // Deletes the auth.users row; the profile, their branch links and
+    // permission overrides cascade away. Everything else that pointed
+    // at this person (bills, refunds, orders, production, stock
+    // records, the activity log) is kept, just disconnected — each row
+    // already carries the person's name as text.
     const { error: deleteErr } = await adminClient.auth.admin.deleteUser(user_id);
     if (deleteErr) {
-      const message = String(deleteErr.message || deleteErr);
-      const looksLikeHistory = /foreign key|violat|constraint/i.test(message);
-      return new Response(JSON.stringify({
-        error: looksLikeHistory
-          ? `${targetProfile?.full_name || 'This staff member'} has existing bills, refunds, or other records and can't be permanently deleted — use Deactivate instead to remove their access while keeping those records intact.`
-          : message,
-      }), {
+      return new Response(JSON.stringify({ error: String(deleteErr.message || deleteErr) }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

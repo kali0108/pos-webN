@@ -12,7 +12,7 @@ import { useRealtimeRefresh } from '../lib/realtime';
 const PAYMENT_MODES = ['cash', 'card', 'mobile_wallet', 'bank_transfer', 'other'];
 
 export default function Billing() {
-  const { user, currentBranchId, branches, can, isOwner } = useAuth();
+  const { user, profile, currentBranchId, branches, can, isOwner } = useAuth();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState([]); // { item_id, item_name, quantity, unit_price }
@@ -308,7 +308,7 @@ export default function Billing() {
         if (error) throw error;
         setMessage({ type: 'ok', text: `${status === 'held' ? 'Held' : 'Completed'} — invoice ${data.invoice_number}` });
         if (status === 'completed') {
-          setReceiptBill({ ...payload, invoice_number: data.invoice_number, branch_name: branchName, currency_symbol: currencySymbol, tax_label: taxLabel, created_at: new Date().toISOString() });
+          setReceiptBill({ ...payload, invoice_number: data.invoice_number, branch_name: branchName, currency_symbol: currencySymbol, tax_label: taxLabel, served_by: profile?.full_name, created_at: new Date().toISOString() });
         }
         resetCart();
         loadHeldBills();
@@ -331,7 +331,7 @@ export default function Billing() {
       // the server once this syncs), so the receipt shows "Pending
       // sync" there. Once it syncs, the final numbered copy is always
       // available again from the Bills page.
-      setReceiptBill({ ...payload, invoice_number: null, branch_name: branchName, currency_symbol: currencySymbol, tax_label: taxLabel, created_at: new Date().toISOString() });
+      setReceiptBill({ ...payload, invoice_number: null, branch_name: branchName, currency_symbol: currencySymbol, tax_label: taxLabel, served_by: profile?.full_name, created_at: new Date().toISOString() });
     }
     resetCart();
     await refreshPendingLocal();

@@ -24,15 +24,19 @@ export default function Receipt({ bill, invoiceId, onClose }) {
     setLoading(true);
     setError(null);
     const [{ data: inv, error: invErr }, { data: items }, { data: payments }] = await Promise.all([
-      supabase.from('invoices').select('*, branches ( name, address, phone, currency_symbol, tax_label )').eq('id', invoiceId).single(),
+      supabase.from('invoices').select('*').eq('id', invoiceId).single(),
       supabase.from('invoice_items').select('*').eq('invoice_id', invoiceId),
       supabase.from('payments').select('*').eq('invoice_id', invoiceId),
     ]);
     if (invErr || !inv) { setError('Could not load this bill.'); setLoading(false); return; }
     setData({
       invoice_number: inv.invoice_number,
-      branch_name: inv.branches?.name, branch_address: inv.branches?.address, branch_phone: inv.branches?.phone,
-      currency_symbol: inv.branches?.currency_symbol || '', tax_label: inv.branches?.tax_label || 'Tax',
+      // Branch/cashier details come from the snapshot stored ON the
+      // bill, so an old receipt still prints correctly (and still
+      // reprints at all) after that branch or cashier has been deleted.
+      branch_name: inv.branch_name, branch_address: inv.branch_address, branch_phone: inv.branch_phone,
+      currency_symbol: inv.currency_symbol || '', tax_label: inv.tax_label || 'Tax',
+      served_by: inv.created_by_name,
       customer_name: inv.customer_name, created_at: inv.created_at,
       items: (items || []).map((i) => ({ item_name: i.item_name, quantity: i.quantity, unit_price: i.unit_price, line_total: i.line_total })),
       subtotal: inv.subtotal, discount_amount: inv.discount_amount, tax_amount: inv.tax_amount, total_amount: inv.total_amount,
@@ -56,6 +60,7 @@ export default function Receipt({ bill, invoiceId, onClose }) {
             <p style={{ margin: '4px 0' }}>Invoice: {data.invoice_number || 'Pending sync'}</p>
             <p style={{ margin: '4px 0' }}>{new Date(data.created_at || Date.now()).toLocaleString()}</p>
             {data.customer_name && <p style={{ margin: '4px 0' }}>Customer: {data.customer_name}</p>}
+            {data.served_by && <p style={{ margin: '4px 0' }}>Served by: {data.served_by}</p>}
             <table style={{ width: '100%', marginTop: 10 }}>
               <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th></tr></thead>
               <tbody>

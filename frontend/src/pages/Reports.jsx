@@ -18,6 +18,7 @@ export default function Reports() {
   const [to, setTo] = useState(daysAgo(0));
   const [consolidated, setConsolidated] = useState(false);
   const [rows, setRows] = useState([]);
+  const [refundTotal, setRefundTotal] = useState(0);
   const canSeeFinancial = isOwner || can('reports.financial.view');
   const canExport = isOwner || can('data.export');
 
@@ -26,13 +27,20 @@ export default function Reports() {
   async function load() {
     let query = supabase
       .from('invoices')
-      .select('invoice_number, branch_id, total_amount, discount_amount, status, created_at, branches ( name )')
+      .select('invoice_number, branch_id, branch_name, total_amount, discount_amount, status, created_at')
       .eq('status', 'completed')
       .gte('created_at', from)
       .lte('created_at', to + 'T23:59:59');
     if (!consolidated) query = query.eq('branch_id', currentBranchId);
     const { data } = await query.order('created_at', { ascending: false });
     setRows(data || []);
+
+    // Refunds in the same window, so the headline isn't overstated.
+    let refQuery = supabase.from('refunds').select('amount')
+      .gte('created_at', from).lte('created_at', to + 'T23:59:59');
+    if (!consolidated) refQuery = refQuery.eq('branch_id', currentBranchId);
+    const { data: refs } = await refQuery;
+    setRefundTotal((refs || []).reduce((sum, r) => sum + Number(r.amount), 0));
   }
 
   const byDay = useMemo(() => {
@@ -49,7 +57,7 @@ export default function Reports() {
 
   function exportExcel() {
     const ws = XLSX.utils.json_to_sheet(rows.map((r) => ({
-      Invoice: r.invoice_number, Branch: r.branches?.name, Date: r.created_at,
+      Invoice: r.invoice_number, Branch: r.branch_name, Date: r.created_at,
       Total: r.total_amount, Discount: r.discount_amount,
     })));
     const wb = XLSX.utils.book_new();
@@ -63,7 +71,7 @@ export default function Reports() {
     autoTable(doc, {
       startY: 20,
       head: [['Invoice', 'Branch', 'Date', 'Total', 'Discount']],
-      body: rows.map((r) => [r.invoice_number, r.branches?.name, r.created_at.slice(0, 10), Number(r.total_amount).toFixed(2), Number(r.discount_amount).toFixed(2)]),
+      body: rows.map((r) => [r.invoice_number, r.branch_name, r.created_at.slice(0, 10), Number(r.total_amount).toFixed(2), Number(r.discount_amount).toFixed(2)]),
     });
     doc.save(`sales_${from}_to_${to}.pdf`);
   }
@@ -84,8 +92,10 @@ export default function Reports() {
         </PermissionGate>
       </div>
 
-      <div className="grid grid-3" style={{ marginBottom: 16 }}>
+      <div className="grid grid-4" style={{ marginBottom: 16 }}>
         <div className="card"><h2>Total sales</h2><p className="num" style={{ fontSize: 24, color: 'var(--ink)' }}>{totalSales.toFixed(2)}</p></div>
+        <div className="card"><h2>Refunded</h2><p className="num" style={{ fontSize: 24, color: 'var(--ink)' }}>{refundTotal.toFixed(2)}</p></div>
+        <div className="card"><h2>Net sales</h2><p className="num" style={{ fontSize: 24, color: 'var(--ink)' }}>{(totalSales - refundTotal).toFixed(2)}</p></div>
         <div className="card"><h2>Bills</h2><p className="num" style={{ fontSize: 24, color: 'var(--ink)' }}>{rows.length}</p></div>
         {canSeeFinancial && <div className="card"><h2>Total discounts given</h2><p className="num" style={{ fontSize: 24, color: 'var(--ink)' }}>{totalDiscount.toFixed(2)}</p></div>}
       </div>
@@ -104,7 +114,7 @@ export default function Reports() {
           {rows.map((r) => (
             <tr key={r.invoice_number}>
               <td className="invoice-number">{r.invoice_number}</td>
-              {consolidated && <td>{r.branches?.name}</td>}
+              {consolidated && <td>{r.branch_name}</td>}
               <td>{new Date(r.created_at).toLocaleString()}</td>
               <td className="num money">{Number(r.total_amount).toFixed(2)}</td>
             </tr>

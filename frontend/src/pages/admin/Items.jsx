@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useRealtimeRefresh } from '../../lib/realtime';
 import { logActivity } from '../../lib/activityLog';
+import ConfirmPasswordModal from '../../components/ConfirmPasswordModal';
 
 const empty = { name: '', sku: '', category_id: '', pricing_mode: 'unit', unit_label: 'pc', unit_price: '', cost_price: '' };
 
@@ -12,6 +13,7 @@ export default function Items() {
   const [editingId, setEditingId] = useState(null);
   const [showInactive, setShowInactive] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
+  const [deleting, setDeleting] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => { load(); }, [showInactive]);
@@ -81,19 +83,13 @@ export default function Items() {
     load();
   }
 
-  async function remove(item) {
-    setError(null);
-    if (!window.confirm(`Permanently delete "${item.name}"? This can't be undone. If it's ever been sold or used in a production record, the delete will be blocked automatically — discontinue it instead in that case.`)) return;
-    const { error } = await supabase.from('items').delete().eq('id', item.id);
-    if (error) {
-      const looksLikeHistory = /foreign key|violat|constraint/i.test(error.message);
-      setError(looksLikeHistory
-        ? `"${item.name}" has been sold or used in production records and can't be deleted — use Discontinue instead to hide it without losing that history.`
-        : error.message);
-      return;
-    }
-    logActivity('product.delete', { entityType: 'item', entityId: item.id, details: { name: item.name, sku: item.sku } });
+  async function confirmDelete(password) {
+    const { data, error } = await supabase.rpc('delete_item', { p_item_id: deleting.id, p_password: password });
+    if (error) return error.message;
+    if (!data?.ok) return data?.error || 'Could not delete this product.';
+    setDeleting(null);
     load();
+    return null;
   }
 
   return (
@@ -158,13 +154,23 @@ export default function Items() {
               <td>
                 <button className="btn btn-sm" onClick={() => edit(item)}>Edit</button>{' '}
                 <button className="btn btn-sm" onClick={() => toggleActive(item)}>{item.is_active ? 'Discontinue' : 'Reactivate'}</button>{' '}
-                <button className="btn btn-sm btn-danger" onClick={() => remove(item)}>Delete</button>
+                <button className="btn btn-sm btn-danger" onClick={() => setDeleting(item)}>Delete</button>
               </td>
             </tr>
           ))}
           {items.length === 0 && <tr><td colSpan={6}>No products yet — add your first one above.</td></tr>}
         </tbody>
       </table></div>
+
+      {deleting && (
+        <ConfirmPasswordModal
+          title={`Delete "${deleting.name}"?`}
+          message="This permanently removes the product and its stock rows. Every past bill that included it keeps the product's name, price and quantity, so old receipts and reports are unaffected."
+          confirmLabel="Delete product"
+          onConfirm={confirmDelete}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </div>
   );
 }

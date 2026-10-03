@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmPasswordModal from '../../components/ConfirmPasswordModal';
 
 const CONFIRM_PHRASE = 'DELETE ALL DATA';
 
 export default function DangerZone() {
-  const { isOwner } = useAuth();
+  const { isOwner, refresh } = useAuth();
   const [typed, setTyped] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
+  const [asking, setAsking] = useState(false);
+  const [done, setDone] = useState(null);
 
   if (!isOwner) {
     return (
@@ -20,27 +20,20 @@ export default function DangerZone() {
     );
   }
 
-  async function runReset() {
-    setError(null);
-    setResult(null);
-    if (typed !== CONFIRM_PHRASE) {
-      setError(`Type exactly "${CONFIRM_PHRASE}" to confirm.`);
-      return;
-    }
-    if (!window.confirm('This will permanently erase every bill, product, custom order, and production record for the whole business. Branches and staff logins are kept. This absolutely cannot be undone. Continue?')) {
-      return;
-    }
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.rpc('reset_all_business_data', { confirmation_phrase: typed });
-      if (error) throw error;
-      setResult(data);
-      setTyped('');
-    } catch (err) {
-      setError(err.message || 'Something went wrong.');
-    } finally {
-      setBusy(false);
-    }
+  // Both safeguards are checked by the database itself (the exact
+  // phrase AND the Owner's password), not just by this page.
+  async function runReset(password) {
+    const { data, error } = await supabase.rpc('reset_all_business_data', {
+      p_confirmation_phrase: typed,
+      p_password: password,
+    });
+    if (error) return error.message;
+    if (!data?.ok) return data?.error || 'The reset did not go through.';
+    setDone(data);
+    setTyped('');
+    setAsking(false);
+    refresh();
+    return null;
   }
 
   return (
@@ -48,37 +41,56 @@ export default function DangerZone() {
       <h1>Danger Zone</h1>
       <p>Irreversible actions live here, and only here — nothing on this page can be undone.</p>
 
+      {done && (
+        <div className="card" style={{ borderColor: 'var(--success)', marginBottom: 16, maxWidth: 560 }}>
+          <h2 style={{ color: 'var(--success)' }}>The system has been reset</h2>
+          <p>
+            Everything was cleared: {done.branches_removed} branch(es) and {done.staff_removed} other staff
+            login(s) were removed along with all bills, products, stock and records. Your own login is untouched.
+            Start fresh from Admin → Branches.
+          </p>
+        </div>
+      )}
+
       <div className="card" style={{ maxWidth: 560, borderColor: 'var(--danger)' }}>
-        <h2 style={{ color: 'var(--danger)' }}>Reset all business data</h2>
+        <h2 style={{ color: 'var(--danger)' }}>Reset the whole system — start over like new</h2>
         <p>
-          Permanently deletes every bill, payment, refund, custom order, production record, and product/category —
-          for every branch, all at once. Use this to wipe out test/sample data before going live with real
-          customers, or to start a completely fresh dataset.
+          Wipes the website back to a brand-new, empty state. Use it to clear out test/sample data before going
+          live with real customers.
         </p>
-        <p><strong>What's kept:</strong> your branches (with their tax/currency settings) and every staff login —
-          deleting those would lock everyone out of a system they'd need to rebuild from scratch, which isn't what
-          "reset the data" usually means. Delete a specific branch or staff account separately if you actually want
-          that gone too — see Branches / Staff & Permissions.</p>
-        <p><strong>What's NOT kept:</strong> items, categories, discount rules, raw materials, all inventory
-          quantities (reset to nothing), every invoice/payment/refund, custom orders, production plans and actuals.
-          Every branch's invoice numbering restarts from 1.</p>
+        <p><strong>Everything below is permanently erased:</strong></p>
+        <ul style={{ color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+          <li>All bills, payments, refunds, exchanges and the History archive</li>
+          <li>All products, categories, discounts, raw materials and every stock level</li>
+          <li>All custom orders and production records</li>
+          <li>All branches, and every other staff login</li>
+          <li>Dashboard adjustments (expenses, corrections) and the whole activity log</li>
+          <li>Invoice numbering — every new branch starts again from 1</li>
+        </ul>
+        <p>
+          <strong>Kept:</strong> only <em>your own</em> Owner login (so you can sign back in and set things up
+          again) and the list of permissions/role templates, which are system settings rather than your data.
+        </p>
 
         <div className="field" style={{ marginTop: 16 }}>
-          <label>Type <code>{CONFIRM_PHRASE}</code> to confirm</label>
+          <label>Type <code>{CONFIRM_PHRASE}</code> to unlock the button</label>
           <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={CONFIRM_PHRASE} />
         </div>
 
-        {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
-        {result && (
-          <div className="card" style={{ borderColor: 'var(--success)', marginBottom: 12 }}>
-            <p>Done. {result.branches_kept} branch(es) and {result.staff_kept} staff account(s) were kept; everything else was cleared.</p>
-          </div>
-        )}
-
-        <button className="btn btn-danger" onClick={runReset} disabled={busy || typed !== CONFIRM_PHRASE}>
-          {busy ? 'Resetting…' : 'Permanently reset all business data'}
+        <button className="btn btn-danger" onClick={() => setAsking(true)} disabled={typed !== CONFIRM_PHRASE}>
+          Reset everything…
         </button>
       </div>
+
+      {asking && (
+        <ConfirmPasswordModal
+          title="Last chance — reset everything?"
+          message="This erases ALL data and every other login, permanently. It cannot be undone and there is no backup inside the app."
+          confirmLabel="Yes, erase everything"
+          onConfirm={runReset}
+          onClose={() => setAsking(false)}
+        />
+      )}
     </div>
   );
 }
