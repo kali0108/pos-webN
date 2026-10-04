@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { useRealtimeRefresh } from '../lib/realtime';
 import { logActivity } from '../lib/activityLog';
+import { useWedgeScanner, sameCode } from '../lib/scanning';
+import BarcodeScannerModal from '../components/BarcodeScannerModal';
 
 export default function Inventory() {
   const { currentBranchId, can, isOwner } = useAuth();
@@ -11,6 +13,10 @@ export default function Inventory() {
   const [consolidated, setConsolidated] = useState(false);
   const [amounts, setAmounts] = useState({}); // rowKey -> typed amount (string)
   const [error, setError] = useState(null);
+  const [query, setQuery] = useState('');
+  const [notice, setNotice] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const tableRef = useRef(null);
   const canEdit = isOwner || can('inventory.edit');
 
   useEffect(() => { load(); }, [currentBranchId, consolidated]);
@@ -19,7 +25,7 @@ export default function Inventory() {
   async function load() {
     let query = supabase
       .from('branch_item_stock')
-      .select('branch_id, quantity, reorder_level, items ( id, name, sku, unit_label )')
+      .select('branch_id, quantity, reorder_level, branches ( name ), items ( id, name, sku, unit_label )')
       .order('updated_at', { ascending: false });
     if (!consolidated) query = query.eq('branch_id', currentBranchId);
     const { data, error: loadErr } = await query;
@@ -91,11 +97,54 @@ export default function Inventory() {
     load();
   }
 
+
+  // Scan (or type + Enter) a product code to jump straight to its row
+  // with the quantity box ready — scan, type 12, press Enter, done.
+  useWedgeScanner((code) => findByCode(code), !scanning);
+
+  function findByCode(raw) {
+    const code = String(raw || '').trim();
+    if (!code) return;
+    // a tolerant exact match (e.g. UPC-A vs EAN-13) narrows to that product's own SKU text
+    const exact = stock.find((s) => sameCode(s.items?.sku, code));
+    const lookup = exact ? exact.items.sku : code;
+    setQuery(lookup);
+    const hits = stock.filter((s) => matches(s, lookup));
+    if (hits.length === 0) {
+      setNotice({ type: 'warn', text: `No stock record matches “${code}”${consolidated ? '' : ' at this branch'}. If it's a new product, add it under Products first.` });
+      return;
+    }
+    setNotice(null);
+    // wait for the filtered table to render, then focus the quantity box
+    setTimeout(() => tableRef.current?.querySelector('input[data-amount]')?.focus(), 60);
+  }
+
+  const matches = (s, text) => {
+    const t = text.toLowerCase();
+    return s.items?.name?.toLowerCase().includes(t) || s.items?.sku?.toLowerCase().includes(t);
+  };
+  const shownStock = query.trim() ? stock.filter((s) => matches(s, query.trim())) : stock;
+
   return (
     <div>
       <h1>Inventory</h1>
       <p>Finished-goods stock {consolidated ? 'across all your branches' : 'for the selected branch'}. Type a quantity and press Add or Remove to adjust — no need to click one at a time.</p>
       {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input
+            style={{ flex: 1, minWidth: 220 }}
+            placeholder="Search by name or SKU — or scan a barcode and press Enter"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setNotice(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); findByCode(query); } }}
+          />
+          <button className="btn btn-sm" type="button" onClick={() => setScanning(true)}>📷 Scan</button>
+          {query && <button className="btn btn-sm" type="button" onClick={() => { setQuery(''); setNotice(null); }}>Clear</button>}
+        </div>
+      </div>
+      {notice && <div className={`notice ${notice.type}`}><span>{notice.text}</span></div>}
 
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
         <input type="checkbox" style={{ width: 'auto' }} checked={consolidated} onChange={(e) => setConsolidated(e.target.checked)} />
@@ -118,22 +167,22 @@ export default function Inventory() {
         </div>
       )}
 
-      <div className="table-wrap"><table>
+      <div className="table-wrap" ref={tableRef}><table>
         <thead>
           <tr><th>Item</th>{consolidated && <th>Branch</th>}<th className="num">Qty</th><th className="num">Reorder level</th>{canEdit && <th>Adjust stock</th>}</tr>
         </thead>
         <tbody>
-          {stock.map((s, i) => {
+          {shownStock.map((s, i) => {
             const key = rowKey(s.branch_id, s.items?.id);
             return (
               <tr key={i}>
                 <td>{s.items?.name} <span style={{ color: 'var(--ink-soft)' }}>({s.items?.sku})</span></td>
-                {consolidated && <td>{s.branch_id.slice(0, 8)}…</td>}
+                {consolidated && <td>{s.branches?.name || '—'}</td>}
                 <td className="num">{s.quantity} {s.items?.unit_label}</td>
                 <td className="num">
                   {canEdit ? (
                     <input type="number" className="num" style={{ width: 70 }} defaultValue={s.reorder_level}
-                      onBlur={(e) => setExactReorderLevel(s.branch_id, s.items.id, e.target.value)} />
+                      onBlur={(e) => { if (Number(e.target.value) !== Number(s.reorder_level)) setExactReorderLevel(s.branch_id, s.items.id, e.target.value); }} />
                   ) : s.reorder_level}
                 </td>
                 {canEdit && (
@@ -141,6 +190,7 @@ export default function Inventory() {
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <input
                         type="number"
+                        data-amount
                         className="num"
                         placeholder="amount"
                         style={{ width: 80 }}
@@ -156,9 +206,17 @@ export default function Inventory() {
               </tr>
             );
           })}
-          {stock.length === 0 && <tr><td colSpan={5}>No stock records yet.</td></tr>}
+          {shownStock.length === 0 && <tr><td colSpan={5}>{stock.length === 0 ? 'No stock records yet.' : 'Nothing matches your search.'}</td></tr>}
         </tbody>
       </table></div>
+
+      {scanning && (
+        <BarcodeScannerModal
+          title="Scan a product barcode"
+          onClose={() => setScanning(false)}
+          onDetected={(code) => { setScanning(false); findByCode(code); }}
+        />
+      )}
     </div>
   );
 }

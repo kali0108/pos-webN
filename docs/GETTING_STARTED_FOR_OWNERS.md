@@ -41,6 +41,12 @@ Click **Permissions** next to any staff member's name to see and change exactly 
 5. **Complete bill** finishes the sale and offers to print a receipt immediately.
 6. **Bills** page (in the sidebar) has every bill ever made at this branch — searchable, reprintable, any time.
 
+## Scanning products
+
+Billing, Products and Inventory all work with a USB/Bluetooth barcode scanner (just scan — no need to click first) and
+with the 📷 camera button on your phone or laptop. A product's **SKU** is its barcode; for things you bake yourself,
+use **Generate code** and print labels from the Products page. The full step-by-step is in `docs/SCANNER_GUIDE.md`.
+
 ## Checking on your business
 
 - **Dashboard** — today's sales, every branch, at a glance.

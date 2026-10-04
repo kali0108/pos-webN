@@ -18,6 +18,6 @@ export function buildEffectivePrices(items, rules) {
         ? price * (1 - Number(rule.discount_value) / 100)
         : price - Number(rule.discount_value);
     }
-    return { ...i, effective_price: Number(Math.max(price, 0).toFixed(2)) };
+    return { ...i, effective_price: Number(Math.max(price, 0).toFixed(2)), discount_label: rule ? rule.label : null };
   });
 }

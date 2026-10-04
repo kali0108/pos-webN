@@ -7,12 +7,14 @@ import PermissionGate from '../components/PermissionGate';
 import Receipt from '../components/Receipt';
 import Calculator from '../components/Calculator';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
+import { buildEffectivePrices } from '../lib/pricing';
+import { useWedgeScanner, sameCode } from '../lib/scanning';
 import { useRealtimeRefresh } from '../lib/realtime';
 
 const PAYMENT_MODES = ['cash', 'card', 'mobile_wallet', 'bank_transfer', 'other'];
 
 export default function Billing() {
-  const { user, profile, currentBranchId, branches, can, isOwner } = useAuth();
+  const { profile, currentBranchId, branches, can, isOwner } = useAuth();
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState([]); // { item_id, item_name, quantity, unit_price }
@@ -36,7 +38,6 @@ export default function Billing() {
   const searchInputRef = useRef(null);
 
   const canDiscount = isOwner || can('bills.discount');
-  const canTax = isOwner || can('bills.tax');
   const currentBranch = branches.find((b) => b.id === currentBranchId);
   const currencySymbol = currentBranch?.currency_symbol || '';
   const taxLabel = currentBranch?.tax_label || 'Tax';
@@ -101,6 +102,12 @@ export default function Billing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, cart.length, resumingClientRef, taxPercent, discount, payments, customerName, customerPhone, cashReceived]);
 
+  // A USB / Bluetooth scanner works without clicking into the scan box
+  // first: a fast burst of keystrokes ending in Enter, while nothing is
+  // focused, is treated as a scan. Paused while a pop-up is open so a
+  // scan can't silently add an item behind the receipt or calculator.
+  useWedgeScanner((code) => handleScan(code), !receiptBill && !showCalculator && !showCameraScan);
+
   async function loadItems() {
     try {
       const { data, error } = await supabase
@@ -117,33 +124,13 @@ export default function Billing() {
       const stockMap = Object.fromEntries((stockRows || []).map((s) => [s.item_id, Number(s.quantity)]));
 
       const { data: ruleRows } = await supabase.from('discount_rules').select('*').eq('is_active', true);
-      const itemRuleMap = new Map();
-      const categoryRuleMap = new Map();
-      (ruleRows || []).forEach((r) => {
-        if (r.scope === 'item') itemRuleMap.set(r.item_id, r);
-        else categoryRuleMap.set(r.category_id, r);
-      });
 
-      function applyRule(price, rule) {
-        if (!rule) return price;
-        if (rule.discount_type === 'percent') return Math.max(price * (1 - Number(rule.discount_value) / 100), 0);
-        return Math.max(price - Number(rule.discount_value), 0);
-      }
-
+      // Standing discounts (item rule beats category rule) are applied
+      // by the same helper the refund/exchange screen uses, so a price
+      // can never differ between the two.
       // No stock row at all = treated as 0 (can't sell what isn't in the
-      // inventory system yet), not as "unlimited" — matches "stock 0 ho
-      // to item select na ho" for anything that was never stocked.
-      const merged = data.map((i) => {
-        // Item-specific discount rule wins over a category-wide one for
-        // the same item, per the standing-discount design.
-        const rule = itemRuleMap.get(i.id) || categoryRuleMap.get(i.category_id);
-        const effectivePrice = Number(applyRule(i.unit_price, rule).toFixed(2));
-        return {
-          ...i, stock_qty: stockMap[i.id] ?? 0,
-          effective_price: effectivePrice,
-          discount_label: rule ? rule.label : null,
-        };
-      });
+      // inventory system yet), not as "unlimited".
+      const merged = buildEffectivePrices(data, ruleRows || []).map((i) => ({ ...i, stock_qty: stockMap[i.id] ?? 0 }));
 
       setItems(merged);
       cacheItems(merged, currentBranchId);
@@ -223,11 +210,12 @@ export default function Billing() {
   function handleScan(rawCode) {
     const code = (rawCode || '').trim();
     if (!code) return;
-    const match = items.find((i) => i.sku && i.sku.toLowerCase() === code.toLowerCase());
+    const match = items.find((i) => sameCode(i.sku, code));
     if (!match) {
-      setMessage({ type: 'warn', text: `No product found with SKU/barcode "${code}".` });
+      setMessage({ type: 'warn', text: `No product found with SKU/barcode "${code}". Add it under Products (scan it there to fill the code in).` });
       return;
     }
+    setMessage(null);
     addToCart(match);
   }
 
@@ -403,7 +391,19 @@ export default function Billing() {
             />
             <button className="btn btn-sm" onClick={() => setShowCameraScan(true)}>📷 Scan</button>
           </div>
-          <input ref={searchInputRef} placeholder="Search items by name or SKU…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input
+            ref={searchInputRef}
+            placeholder="Search items by name or SKU… (Enter adds the match)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              // exact SKU wins; otherwise a single remaining match is the one meant
+              const hit = items.find((i) => sameCode(i.sku, search)) || (filteredItems.length === 1 ? filteredItems[0] : null);
+              if (hit) { addToCart(hit); setSearch(''); }
+            }}
+          />
           <div className="grid grid-3" style={{ marginTop: 14 }}>
             {filteredItems.map((item) => {
               const outOfStock = (item.stock_qty ?? 0) <= 0;

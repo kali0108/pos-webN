@@ -22,6 +22,7 @@ bakery-pos/
     ├── CLIENT_HANDOVER.md      Checklist for handing this off to the actual business owner
     ├── GETTING_STARTED_FOR_OWNERS.md  Plain-language guide to leave with a non-technical client
     ├── TAX_COMPLIANCE.md       Honest scope note on FBR/ZATCA-style government e-invoicing
+    ├── SCANNER_GUIDE.md        Barcode / QR scanning: scanners, camera, adding/updating/selecting products, labels
     ├── SECURITY.md             What's enforced, what was hardened, and what's recommended
     └── FREE_TIER_LIMITS.md     Real numbers + the backup strategy the free tier needs
 ```
@@ -56,6 +57,7 @@ Built out and working end to end, because these are the parts the brief calls ou
 - **Multi-country tax and currency** — each branch has its own tax rate/label and currency (Pakistan Sales Tax in PKR, Saudi Arabia VAT in SAR, or any future country — no code change needed), applied automatically on every bill. Cashiers see the tax on the bill; only Owner/Manager (the `bills.tax` permission) can override it per sale. See `docs/TAX_COMPLIANCE.md` for what this does and doesn't cover regarding government e-invoicing (FBR, ZATCA, etc.).
 - **Bulk import/export** (Admin → Import/Export) — bring in a product catalog or stock levels from a spreadsheet instead of typing everything by hand, with a downloadable template, clear per-row error reporting, and duplicate-SKU protection; export products, inventory, or customers back out to Excel any time.
 - **Automatic discounts** (Admin → Discounts) — set a standing category-wide or item-specific discount once; it applies automatically as the item's selling price at billing time, so a cashier never types a discount for these. Gated by its own `discounts.manage` permission.
+- **Barcode & QR scanning everywhere it matters** — USB/Bluetooth scanners work on Billing, Products and Inventory without clicking into a box first; the 📷 camera scanner works on Android, iPhone, Windows and Mac browsers (not just Chrome on Android); scan to sell, to add a product, to select/update/delete one, and to find stock; generate codes and print labels for items you bake yourself. See `docs/SCANNER_GUIDE.md`.
 - **Collapsible sidebar navigation** — each section (Sales, Operations, Insights, Admin) expands/collapses on click, auto-opening whichever section contains the page you're on.
 - **Keyboard shortcuts on Billing** — F2 search, F3 scan, F4 calculator, F8 hold, F9 complete, Esc clear — shown as a legend right on the page.
 - **Comprehensive activity logging** — branch changes, staff edits, permission changes, product/inventory changes, discount rules, custom orders, production records, and bulk imports are all now recorded (previously only billing and staff creation were), visible to the Owner/managers only — see `docs/SECURITY.md`.
@@ -94,3 +96,9 @@ Beyond features, this codebase has been through a dedicated bug-hunting pass: ev
 ## The one flagged deviation from the cost constraint
 
 None in the backend. Every layer — frontend framework, database, auth, charts, Excel/PDF export — is free/open-source at this project's scale (see `docs/ARCHITECTURE.md §1` for the full table and trade-offs). If you're hosting the frontend on Hostinger rather than the free Netlify path this project was originally written for, that's a paid-hosting choice you're making deliberately (see `docs/DEPLOYMENT_HOSTINGER.md`) — it doesn't change anything about the backend's cost. The single feature the brief itself flags as commonly needing a paid API — WhatsApp/SMS notifications to customers — is **not implemented**, on purpose; the free fallback is a `wa.me` link that opens WhatsApp Web/App with a pre-filled message for staff to send manually.
+
+## Checking the code
+
+From the `frontend` folder: `npm test` runs the automated suite (every page renders, the scanner flows, refunds, the
+dashboard, password-protected actions, the no-branch state), and `npm run build` makes the production bundle. The
+database side is plain SQL under `supabase/migrations/` — apply the files in numeric order, then `seed.sql`.

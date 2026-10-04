@@ -471,3 +471,10 @@ body.cursor-hidden .cursor-inner {
 .adj-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .adj-form input, .adj-form select { width: auto; min-width: 120px; }
 .adj-form .field input { width: 100%; }
+
+/* ---- Barcode / QR camera scanner ---- */
+.scan-video { width: 100%; max-height: 55vh; object-fit: cover; border-radius: 8px; background: #000; }
+tr.row-selected td { background: var(--accent-soft); }
+.notice { padding: 10px 12px; border-radius: var(--radius); margin-bottom: 14px; font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.notice.ok { background: var(--success-soft); color: var(--success); }
+.notice.warn { background: var(--warning-soft); color: var(--warning); }

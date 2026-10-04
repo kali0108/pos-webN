@@ -87,8 +87,12 @@ export default function Reports() {
           <input type="checkbox" style={{ width: 'auto' }} checked={consolidated} onChange={(e) => setConsolidated(e.target.checked)} /> Company-wide
         </label>
         <PermissionGate permission="data.export">
-          <button className="btn btn-sm" onClick={exportExcel}>Export Excel</button>
-          <button className="btn btn-sm" onClick={exportPdf}>Export PDF</button>
+          {canExport && (
+            <>
+              <button className="btn btn-sm" onClick={exportExcel}>Export Excel</button>{' '}
+              <button className="btn btn-sm" onClick={exportPdf}>Export PDF</button>
+            </>
+          )}
         </PermissionGate>
       </div>
 

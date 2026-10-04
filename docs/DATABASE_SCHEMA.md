@@ -30,6 +30,7 @@ Full, runnable SQL is the source of truth, in `supabase/migrations/`, applied in
 | `0024_dashboard_summary.sql` | `dashboard_summary()` — everything the Dashboard shows (sales, refunds, tax, cost of goods, gross/net profit, cash estimate, payment modes, trend, top products, stock value), computed in the viewer's own timezone |
 | `0025_password_protected_destructive_actions.sql` | Deleting a branch / product and the full system reset now require the person's own password, **verified on the server** and rate-limited (5 wrong attempts per 15 min). Direct deletes on those tables are removed. The reset is now a true wipe (everything except the Owner running it) |
 | `0026_harden_billing_functions.sql` | Locks the internal stock helper functions so they can't be called directly from the browser; `sync_invoice()` runs with explicit permission checks and treats a finished bill as final (a re-sent bill can't rewrite a completed sale); **cashiers can now read stock at their own branch** (without this the Billing screen saw zero stock for every product) |
+| `0027_fix_reset_for_safeupdate.sql` | Catch-up fix: Supabase rejects any `DELETE`/`UPDATE` without a `WHERE` clause (the `pg_safeupdate` guard) even inside a function, which made the full reset fail with "DELETE requires a WHERE clause". Every delete in the reset now says `where true`. Only needed if you already ran 0025 before this fix |
 
 This document is the plain-English map of what's in there and why.
 

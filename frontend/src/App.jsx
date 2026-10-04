@@ -11,7 +11,6 @@ import Inventory from './pages/Inventory';
 import Availability from './pages/Availability';
 import Items from './pages/admin/Items';
 import Discounts from './pages/admin/Discounts';
-import DataManager from './pages/admin/DataManager';
 import Bills from './pages/Bills';
 import CustomOrders from './pages/CustomOrders';
 import Production from './pages/Production';
@@ -30,6 +29,9 @@ const Reports = lazy(() => import('./pages/Reports'));
 // The Dashboard pulls in Chart.js, so it's split out too — the Billing
 // screen doesn't pay for a charting library it never uses.
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+// Import / Export drags in the Excel library (~400 KB) — loaded only when
+// someone actually opens that page, not on every sign-in at the counter.
+const DataManager = lazy(() => import('./pages/admin/DataManager'));
 
 export default function App() {
   return (
@@ -54,7 +56,7 @@ export default function App() {
             <Route path="/availability" element={<ProtectedRoute requirePermission="inventory.view"><Availability /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute requirePermission="inventory.edit"><Items /></ProtectedRoute>} />
             <Route path="/discounts" element={<ProtectedRoute requirePermission="discounts.manage"><Discounts /></ProtectedRoute>} />
-            <Route path="/data" element={<DataManager />} />
+            <Route path="/data" element={<Suspense fallback={<div className="page-loading">Loading…</div>}><DataManager /></Suspense>} />
             <Route path="/custom-orders" element={<BranchRequired><CustomOrders /></BranchRequired>} />
             <Route path="/production" element={<ProtectedRoute requirePermission="production.edit"><BranchRequired><Production /></BranchRequired></ProtectedRoute>} />
             <Route path="/reports" element={<BranchRequired><Suspense fallback={<div className="page-loading">Loading…</div>}><Reports /></Suspense></BranchRequired>} />

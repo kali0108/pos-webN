@@ -29,7 +29,6 @@ export default function Production() {
   }
 
   function planFor(item_id) { return plans.find((p) => p.item_id === item_id); }
-  function actualFor(item_id) { return actuals.find((a) => a.item_id === item_id); }
 
   async function savePlan(item_id) {
     setError(null);
