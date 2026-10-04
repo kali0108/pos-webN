@@ -50,7 +50,8 @@ export default function Layout() {
       <aside className={`sidebar${mobileNavOpen ? ' open' : ''}`}>
         <div className="sidebar-brand">
           <span>POS webApp</span>
-          <span>Powered by: Assam</span>
+          <br></br>
+          <span>Powered by: <span style={{ color: "red" }}>Assam</span></span>
           <button className="sidebar-close-btn" onClick={closeMobileNav} aria-label="Close menu">✕</button>
         </div>
 
