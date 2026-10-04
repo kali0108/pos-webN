@@ -23,7 +23,7 @@ export default function Login() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
-        <h1 style={{ marginBottom: 2 }}>Bakery POS</h1>
+        <h1 style={{ marginBottom: 2 }}>POS webApp</h1>
         <p style={{ marginBottom: 20 }}>Sign in with your staff account.</p>
 
         <div className="field">
